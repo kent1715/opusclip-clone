@@ -519,10 +519,42 @@ export function TemplatesSection() {
 
   // ─── Handlers ────────────────────────────────────────────────────────────
 
-  const handleApply = useCallback((templateId: string) => {
+  const handleApply = useCallback(async (templateId: string) => {
     setAppliedTemplateId(templateId);
+    try {
+      const template = templates.find(t => t.id === templateId);
+      if (!template) return;
+
+      // Apply template settings to all clips that belong to the user
+      // We need to get user's clips first
+      const userId = user?.id;
+      if (!userId) return;
+
+      const videosRes = await fetch(`/api/videos?userId=${userId}`);
+      if (videosRes.ok) {
+        const videosData = await videosRes.json();
+        const allClips = videosData.data?.flatMap((v: { clips: { id: string }[] }) => v.clips) || [];
+        
+        // Apply template to all clips
+        await Promise.all(
+          allClips.map((clip: { id: string }) =>
+            fetch(`/api/clips/${clip.id}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                captionStyle: template.captionStyle,
+                layout: template.layout,
+                templateId: template.id,
+              }),
+            })
+          )
+        );
+      }
+    } catch (err) {
+      console.error("Failed to apply template:", err);
+    }
     setTimeout(() => setAppliedTemplateId(null), 2000);
-  }, []);
+  }, [templates, user?.id]);
 
   const handleDeleteTemplate = useCallback(
     async (templateId: string) => {

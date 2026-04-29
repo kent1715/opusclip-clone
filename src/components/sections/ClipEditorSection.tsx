@@ -231,6 +231,7 @@ export function ClipEditorSection() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   // Playback mock state
   const [isPlaying, setIsPlaying] = useState(false);
@@ -333,6 +334,41 @@ export function ClipEditorSection() {
   }, [isPlaying]);
 
   // ─── Actions ─────────────────────────────────────────────────────────────
+
+  const handleExportAll = useCallback(async () => {
+    if (clips.length === 0) return;
+    setIsExporting(true);
+    try {
+      // Export clips as downloadable JSON
+      const exportData = clips.map(clip => ({
+        title: clip.title,
+        startTime: clip.startTime,
+        duration: clip.duration,
+        viralityScore: clip.viralityScore,
+        captions: clip.captions,
+        captionStyle: clip.captionStyle,
+        layout: clip.layout,
+        tags: parseTags(clip.tags),
+      }));
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `opusclip-export-${video?.title || 'clips'}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Failed to export clips:", err);
+    } finally {
+      setIsExporting(false);
+    }
+  }, [clips, video?.title]);
+
+  const handleProcessAnother = useCallback(() => {
+    setCurrentView("dashboard");
+  }, [setCurrentView]);
 
   const handleSave = async () => {
     if (!activeClipId) return;
@@ -474,6 +510,7 @@ export function ClipEditorSection() {
           <Button
             variant="ghost"
             size="sm"
+            onClick={handleProcessAnother}
             className="text-white/60 hover:text-white hover:bg-white/5 hidden sm:flex"
           >
             <RefreshCw className="w-4 h-4 mr-1" />
@@ -481,10 +518,16 @@ export function ClipEditorSection() {
           </Button>
           <Button
             size="sm"
-            className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white border-0 shadow-lg shadow-pink-500/20"
+            onClick={handleExportAll}
+            disabled={isExporting || clips.length === 0}
+            className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white border-0 shadow-lg shadow-pink-500/20 disabled:opacity-50"
           >
-            <Download className="w-4 h-4 mr-1" />
-            Export All
+            {isExporting ? (
+              <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+            ) : (
+              <Download className="w-4 h-4 mr-1" />
+            )}
+            {isExporting ? "Exporting..." : "Export All"}
           </Button>
         </div>
       </div>

@@ -72,6 +72,7 @@ export function Navbar() {
   };
 
   const handleLogout = () => {
+    localStorage.removeItem("opus_user_id");
     setUser(null);
     setCurrentView("landing");
   };

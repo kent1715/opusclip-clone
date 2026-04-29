@@ -5,16 +5,17 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
     const userId = searchParams.get('userId')
+    const email = searchParams.get('email')
 
-    if (!userId) {
+    if (!userId && !email) {
       return NextResponse.json(
-        { error: 'User ID is required' },
+        { error: 'User ID or email is required' },
         { status: 400 }
       )
     }
 
     const user = await db.user.findUnique({
-      where: { id: userId },
+      where: userId ? { id: userId } : { email: email! },
       include: {
         videos: {
           orderBy: { createdAt: 'desc' },

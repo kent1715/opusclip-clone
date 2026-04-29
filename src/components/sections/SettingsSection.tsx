@@ -150,15 +150,62 @@ export function SettingsSection() {
     }
   }, [user?.id, editName, setUser]);
 
-  const handleUpgrade = useCallback((planName: string) => {
-    // Visual only - show toast via alert for now
-    alert(`Coming soon! ${planName} plan upgrade will be available soon.`);
-  }, []);
+  const [upgradingPlan, setUpgradingPlan] = useState<string | null>(null);
+  const [upgradeSuccess, setUpgradeSuccess] = useState<string | null>(null);
 
-  const handleDeleteAccount = useCallback(() => {
-    alert("This action cannot be undone. Account deletion is not available in the demo.");
-    setShowDeleteDialog(false);
-  }, []);
+  const handleUpgrade = useCallback(async (planId: string) => {
+    if (!user?.id) return;
+    setUpgradingPlan(planId);
+    setUpgradeSuccess(null);
+    try {
+      const res = await fetch("/api/auth/update", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.id, plan: planId }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to upgrade plan");
+      }
+      setUser(data.user);
+      setUpgradeSuccess(planId);
+      setTimeout(() => setUpgradeSuccess(null), 3000);
+    } catch (err) {
+      setProfileError(
+        err instanceof Error ? err.message : "Failed to upgrade plan"
+      );
+    } finally {
+      setUpgradingPlan(null);
+    }
+  }, [user?.id, setUser]);
+
+  const [deletingAccount, setDeletingAccount] = useState(false);
+
+  const handleDeleteAccount = useCallback(async () => {
+    if (!user?.id) return;
+    setDeletingAccount(true);
+    try {
+      const res = await fetch(`/api/auth/delete?userId=${user.id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to delete account");
+      }
+      // Clear local storage and reset state
+      localStorage.removeItem("opus_user_id");
+      setUser(null);
+      setCurrentView("landing");
+      setShowDeleteDialog(false);
+    } catch (err) {
+      setProfileError(
+        err instanceof Error ? err.message : "Failed to delete account"
+      );
+      setShowDeleteDialog(false);
+    } finally {
+      setDeletingAccount(false);
+    }
+  }, [user?.id, setUser, setCurrentView]);
 
   // ─── Computed values ─────────────────────────────────────────────────────
 
@@ -423,17 +470,30 @@ export function SettingsSection() {
                     >
                       Current Plan
                     </Button>
+                  ) : upgradeSuccess === plan.id ? (
+                    <Button
+                      disabled
+                      className="w-full h-9 text-xs rounded-lg bg-green-500/20 text-green-400 border-0 cursor-default"
+                    >
+                      <Check className="w-3.5 h-3.5 mr-1.5" />
+                      Upgraded!
+                    </Button>
                   ) : (
                     <Button
-                      onClick={() => handleUpgrade(plan.name)}
+                      onClick={() => handleUpgrade(plan.id)}
+                      disabled={upgradingPlan !== null}
                       className={`w-full h-9 text-xs rounded-lg border-0 transition-all ${
                         plan.popular
-                          ? "bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white shadow-lg shadow-pink-500/20"
-                          : "bg-white/5 text-white/60 hover:bg-white/10 hover:text-white/80"
+                          ? "bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white shadow-lg shadow-pink-500/20 disabled:opacity-50"
+                          : "bg-white/5 text-white/60 hover:bg-white/10 hover:text-white/80 disabled:opacity-50"
                       }`}
                     >
-                      <Zap className="w-3.5 h-3.5 mr-1.5" />
-                      Upgrade to {plan.name}
+                      {upgradingPlan === plan.id ? (
+                        <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                      ) : (
+                        <Zap className="w-3.5 h-3.5 mr-1.5" />
+                      )}
+                      {upgradingPlan === plan.id ? "Upgrading..." : `Upgrade to ${plan.name}`}
                     </Button>
                   )}
                 </motion.div>
@@ -593,10 +653,15 @@ export function SettingsSection() {
                     Cancel
                   </AlertDialogCancel>
                   <AlertDialogAction
-                    className="bg-red-500/80 hover:bg-red-600 text-white border-0"
+                    className="bg-red-500/80 hover:bg-red-600 text-white border-0 disabled:opacity-50"
                     onClick={handleDeleteAccount}
+                    disabled={deletingAccount}
                   >
-                    Delete Account
+                    {deletingAccount ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      "Delete Account"
+                    )}
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>

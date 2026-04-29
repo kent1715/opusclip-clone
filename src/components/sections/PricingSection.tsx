@@ -3,8 +3,15 @@
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Check, Sparkles, Zap, Crown } from "lucide-react";
+import { Check, Sparkles, Zap, Crown, Loader2 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
+import { useState, useCallback } from "react";
+
+const planIdMap: Record<string, string> = {
+  Free: "free",
+  Pro: "pro",
+  Business: "business",
+};
 
 const plans = [
   {
@@ -76,20 +83,43 @@ const plans = [
 ];
 
 export function PricingSection() {
-  const { user, setAuthModalTab, setCurrentView } = useAppStore();
+  const { user, setUser, setAuthModalTab, setCurrentView } = useAppStore();
+  const [upgradingPlan, setUpgradingPlan] = useState<string | null>(null);
 
-  const handlePlanClick = (planName: string) => {
+  const handlePlanClick = useCallback(async (planName: string) => {
     if (!user) {
       setAuthModalTab("signup");
       return;
     }
-    // If user is already logged in and clicks a paid plan, navigate to settings
-    if (planName !== "Free") {
-      setCurrentView("settings");
-    } else {
+    const planId = planIdMap[planName];
+    if (!planId) return;
+
+    // If clicking the current plan, go to dashboard
+    if (user.plan === planId) {
       setCurrentView("dashboard");
+      return;
     }
-  };
+
+    // For free plan, just update
+    setUpgradingPlan(planId);
+    try {
+      const res = await fetch("/api/auth/update", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.id, plan: planId }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to upgrade plan");
+      }
+      setUser(data.user);
+      setCurrentView("dashboard");
+    } catch (err) {
+      console.error("Failed to upgrade plan:", err);
+    } finally {
+      setUpgradingPlan(null);
+    }
+  }, [user, setUser, setAuthModalTab, setCurrentView]);
 
   return (
     <section id="pricing" className="relative py-24 md:py-32">
@@ -160,9 +190,13 @@ export function PricingSection() {
               {/* CTA Button */}
               <Button
                 onClick={() => handlePlanClick(plan.name)}
-                className={`w-full mb-6 ${plan.buttonGradient} border-0 h-12 text-sm font-semibold rounded-xl transition-all duration-300`}
+                disabled={upgradingPlan === planIdMap[plan.name]}
+                className={`w-full mb-6 ${plan.buttonGradient} border-0 h-12 text-sm font-semibold rounded-xl transition-all duration-300 disabled:opacity-50`}
               >
-                {plan.cta}
+                {upgradingPlan === planIdMap[plan.name] ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : null}
+                {upgradingPlan === planIdMap[plan.name] ? "Upgrading..." : plan.cta}
               </Button>
 
               {/* Features */}
