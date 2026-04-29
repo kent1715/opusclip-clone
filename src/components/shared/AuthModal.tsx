@@ -77,16 +77,47 @@ export function AuthModal() {
 
     setSignInLoading(true);
     try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: signInEmail, password: signInPassword }),
-      });
+      // Retry logic for server cold starts
+      let res: Response | null = null;
+      let lastError: string | null = null;
+      
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          res = await fetch("/api/auth/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: signInEmail, password: signInPassword }),
+          });
+          break; // Success, exit retry loop
+        } catch {
+          lastError = "Network error. Server may be starting up.";
+          if (attempt < 2) {
+            // Wait before retrying (server might be cold starting)
+            await new Promise(r => setTimeout(r, 1500 * (attempt + 1)));
+          }
+        }
+      }
 
-      const data = await res.json();
+      if (!res) {
+        setSignInError(lastError || "Could not connect to server. Please refresh the page and try again.");
+        return;
+      }
+
+      let data;
+      try {
+        data = await res.json();
+      } catch {
+        setSignInError("Server error. Please refresh the page and try again.");
+        return;
+      }
 
       if (!res.ok) {
         setSignInError(data.error || "Login failed");
+        return;
+      }
+
+      if (!data.user) {
+        setSignInError("Invalid response from server.");
         return;
       }
 
@@ -94,8 +125,9 @@ export function AuthModal() {
       setShowAuthModal(false);
       setCurrentView("dashboard");
       resetForm();
-    } catch {
-      setSignInError("Something went wrong. Please try again.");
+    } catch (err) {
+      console.error("Login error:", err);
+      setSignInError("Something went wrong. Please refresh the page and try again.");
     } finally {
       setSignInLoading(false);
     }
@@ -122,20 +154,50 @@ export function AuthModal() {
 
     setSignUpLoading(true);
     try {
-      const res = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: signUpEmail,
-          name: signUpName,
-          password: signUpPassword,
-        }),
-      });
+      // Retry logic for server cold starts
+      let res: Response | null = null;
+      let lastError: string | null = null;
+      
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          res = await fetch("/api/auth/register", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email: signUpEmail,
+              name: signUpName,
+              password: signUpPassword,
+            }),
+          });
+          break;
+        } catch {
+          lastError = "Network error. Server may be starting up.";
+          if (attempt < 2) {
+            await new Promise(r => setTimeout(r, 1500 * (attempt + 1)));
+          }
+        }
+      }
 
-      const data = await res.json();
+      if (!res) {
+        setSignUpError(lastError || "Could not connect to server. Please refresh the page and try again.");
+        return;
+      }
+
+      let data;
+      try {
+        data = await res.json();
+      } catch {
+        setSignUpError("Server error. Please refresh the page and try again.");
+        return;
+      }
 
       if (!res.ok) {
         setSignUpError(data.error || "Registration failed");
+        return;
+      }
+
+      if (!data.user) {
+        setSignUpError("Invalid response from server.");
         return;
       }
 
@@ -143,8 +205,9 @@ export function AuthModal() {
       setShowAuthModal(false);
       setCurrentView("dashboard");
       resetForm();
-    } catch {
-      setSignUpError("Something went wrong. Please try again.");
+    } catch (err) {
+      console.error("Registration error:", err);
+      setSignUpError("Something went wrong. Please refresh the page and try again.");
     } finally {
       setSignUpLoading(false);
     }
