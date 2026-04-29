@@ -201,55 +201,310 @@ function extractTitleFromUrl(url: string, platform: string): string {
 
 // ─── Fallback Clip Generator ───────────────────────────────────────────────
 
-function generateContextualFallbackClips(videoTitle: string) {
-  const baseTitle = videoTitle
-    .replace(/^(YouTube Video|TikTok Video|Vimeo Video|Video from)\s*/i, "")
-    .trim();
+function generateContextualFallbackClips(
+  videoTitle: string,
+  authorName?: string | null,
+  _platform?: string
+) {
+  const shortTitle =
+    videoTitle.length > 50
+      ? videoTitle.substring(0, 47) + "..."
+      : videoTitle;
+  const author = authorName || "";
+  const isMusic =
+    /music|song|official (video|audio|mv)|lyrics|mv|cover|remix|instrumental/i.test(
+      videoTitle
+    );
+  const isTutorial =
+    /how to|tutorial|guide|learn|tips|explained|beginner|step by step/i.test(
+      videoTitle
+    );
+  const isVlog =
+    /vlog|day in|my life|routine|grwm|haul|tour/i.test(videoTitle);
+  const isReview =
+    /review|unboxing|first look|hands on|vs|comparison/i.test(videoTitle);
+  const isComedy =
+    /funny|comedy|prank|skit|parody|try not to laugh|challenge/i.test(
+      videoTitle
+    );
 
-  const clipTemplates = [
-    {
-      titleTemplate: `The Best Moment from "${baseTitle}"`,
-      tags: ["best moment", "highlight", "must watch"],
-      captions:
-        "You have to see this|This is the best part|Absolutely incredible",
-    },
-    {
-      titleTemplate: `Key Takeaway from "${baseTitle}"`,
-      tags: ["key point", "takeaway", "insight"],
-      captions:
-        "Here's the key point|This is what matters most|Don't miss this insight",
-    },
-    {
-      titleTemplate: `The Part Everyone's Talking About — "${baseTitle}"`,
-      tags: ["viral", "trending", "everyone talking"],
-      captions:
-        "This part went viral|Everyone is sharing this|The moment that broke the internet",
-    },
-    {
-      titleTemplate: `Quick Summary — "${baseTitle}" in 30 Seconds`,
-      tags: ["summary", "quick recap", "short version"],
-      captions:
-        "Here's the quick summary|Everything you need to know|In just 30 seconds",
-    },
-    {
-      titleTemplate: `The Twist Nobody Expected in "${baseTitle}"`,
-      tags: ["unexpected", "plot twist", "shocking"],
-      captions:
-        "Nobody saw this coming|The twist changes everything|You won't believe what happens",
-    },
-  ];
+  const clips: Array<{
+    title: string;
+    startTime: string;
+    duration: string;
+    viralityScore: number;
+    tags: string[];
+    captions: string;
+  }> = [];
 
-  return clipTemplates.map((template, i) => ({
-    title: template.titleTemplate,
-    startTime: `${Math.floor(Math.random() * 8) + i}:${Math.floor(Math.random() * 60)
+  if (isMusic) {
+    clips.push(
+      {
+        title: `${shortTitle} — The Chorus That Everyone Knows`,
+        startTime: "0:30",
+        duration: "0:35",
+        viralityScore: 97,
+        tags: ["chorus", "iconic", "music"],
+        captions: "This is the part everyone waits for|The chorus that defined a generation|Can't help but sing along",
+      },
+      {
+        title: `${author ? author + " — " : ""}The Vocal Range That Shocked Everyone`,
+        startTime: "1:15",
+        duration: "0:28",
+        viralityScore: 93,
+        tags: ["vocals", "talent", "impressive"],
+        captions: "Wait for this note|The vocal range is insane|How is this even possible",
+      },
+      {
+        title: `The Beat Drop in "${shortTitle}" — Goosebumps Every Time`,
+        startTime: "0:45",
+        duration: "0:22",
+        viralityScore: 95,
+        tags: ["beat drop", "goosebumps", "epic"],
+        captions: "This part gives me chills|The build-up is everything|Pure musical genius",
+      },
+      {
+        title: `${author ? author + " — " : ""}Behind the Iconic Performance`,
+        startTime: "2:10",
+        duration: "0:40",
+        viralityScore: 88,
+        tags: ["behind the scenes", "performance", "legendary"],
+        captions: "The energy is unmatched|This performance changed everything|A moment in music history",
+      },
+      {
+        title: `Why "${shortTitle}" Went Viral — The Full Breakdown`,
+        startTime: "0:10",
+        duration: "0:33",
+        viralityScore: 91,
+        tags: ["viral", "breakdown", "analysis"],
+        captions: "Here's why this blew up|The secret behind the viral moment|Everyone is talking about this",
+      }
+    );
+  } else if (isTutorial) {
+    clips.push(
+      {
+        title: `The #1 Mistake Everyone Makes (And How to Fix It)`,
+        startTime: "1:30",
+        duration: "0:35",
+        viralityScore: 95,
+        tags: ["mistake", "fix", "tips"],
+        captions: "Stop doing this right now|Here's the correct way|This changes everything",
+      },
+      {
+        title: `The Pro Trick That Saves Hours — ${shortTitle}`,
+        startTime: "3:45",
+        duration: "0:28",
+        viralityScore: 93,
+        tags: ["pro tip", "time saver", "hack"],
+        captions: "Nobody talks about this trick|This saves so much time|The pros use this every day",
+      },
+      {
+        title: `Skip to This Timestamp — The Most Important Part`,
+        startTime: "2:00",
+        duration: "0:30",
+        viralityScore: 90,
+        tags: ["key point", "must watch", "important"],
+        captions: "This is the most important part|Don't skip this section|Everything clicks here",
+      },
+      {
+        title: `${shortTitle} in 30 Seconds — Quick Version`,
+        startTime: "0:15",
+        duration: "0:30",
+        viralityScore: 88,
+        tags: ["quick", "summary", "short version"],
+        captions: "Here's the fast version|Everything you need in 30 seconds|No fluff, just results",
+      },
+      {
+        title: `Before vs After — The Transformation Is Insane`,
+        startTime: "5:00",
+        duration: "0:25",
+        viralityScore: 92,
+        tags: ["transformation", "results", "before after"],
+        captions: "Look at this difference|The transformation is unreal|This actually works",
+      }
+    );
+  } else if (isVlog) {
+    clips.push(
+      {
+        title: `The Moment That Changed Everything — ${shortTitle}`,
+        startTime: "2:30",
+        duration: "0:35",
+        viralityScore: 94,
+        tags: ["turning point", "moment", "vlog"],
+        captions: "This changed everything|Nobody expected this|The moment everyone talks about",
+      },
+      {
+        title: `The Part Nobody Talks About — ${shortTitle}`,
+        startTime: "4:00",
+        duration: "0:28",
+        viralityScore: 91,
+        tags: ["untold", "honest", "real"],
+        captions: "Nobody talks about this part|So honest and real|This hit different",
+      },
+      {
+        title: `${author ? author + "'s " : ""}Most Relatable Moment Caught on Camera`,
+        startTime: "1:00",
+        duration: "0:22",
+        viralityScore: 89,
+        tags: ["relatable", "real", "authentic"],
+        captions: "We've all been here|So relatable it hurts|This is too real",
+      },
+      {
+        title: `The Unexpected Twist — Nobody Saw This Coming`,
+        startTime: "3:30",
+        duration: "0:30",
+        viralityScore: 96,
+        tags: ["unexpected", "twist", "shocking"],
+        captions: "Nobody saw this coming|The plot twist of the year|I was NOT expecting this",
+      },
+      {
+        title: `The Ending That Had Everyone in Tears — ${shortTitle}`,
+        startTime: "6:00",
+        duration: "0:35",
+        viralityScore: 93,
+        tags: ["emotional", "ending", "touching"],
+        captions: "I'm not crying you are|This ending destroyed me|Pure emotion",
+      }
+    );
+  } else if (isReview) {
+    clips.push(
+      {
+        title: `${shortTitle} — Is It Worth the Hype? Honest Take`,
+        startTime: "0:30",
+        duration: "0:40",
+        viralityScore: 94,
+        tags: ["honest review", "worth it", "verdict"],
+        captions: "Is it worth the hype?|Here's my honest take|The verdict might surprise you",
+      },
+      {
+        title: `The Feature Nobody Mentions — ${shortTitle}`,
+        startTime: "3:00",
+        duration: "0:25",
+        viralityScore: 90,
+        tags: ["hidden feature", "underrated", "discovery"],
+        captions: "Nobody mentions this feature|This changes everything|So underrated",
+      },
+      {
+        title: `The Dealbreaker — ${shortTitle}`,
+        startTime: "4:30",
+        duration: "0:30",
+        viralityScore: 92,
+        tags: ["dealbreaker", "honest", "cons"],
+        captions: "This is the dealbreaker|You need to know this before buying|The one thing that ruins it",
+      },
+      {
+        title: `${author ? author + "'s " : ""}Final Score — You Won't Believe It`,
+        startTime: "7:00",
+        duration: "0:20",
+        viralityScore: 95,
+        tags: ["final score", "verdict", "rating"],
+        captions: "The final score is...|You won't believe this rating|Is it a buy or pass",
+      },
+      {
+        title: `The Unboxing Moment Everyone's Talking About`,
+        startTime: "1:00",
+        duration: "0:28",
+        viralityScore: 88,
+        tags: ["unboxing", "first look", "reaction"],
+        captions: "The unboxing experience|First impressions matter|This looks incredible",
+      }
+    );
+  } else if (isComedy) {
+    clips.push(
+      {
+        title: `The Moment That Broke the Internet — ${shortTitle}`,
+        startTime: "0:45",
+        duration: "0:25",
+        viralityScore: 98,
+        tags: ["broke internet", "funny", "viral"],
+        captions: "This broke the internet|I can't stop laughing|The funniest thing ever",
+      },
+      {
+        title: `Try Not to Laugh at This — ${shortTitle}`,
+        startTime: "1:30",
+        duration: "0:20",
+        viralityScore: 96,
+        tags: ["try not to laugh", "comedy", "hilarious"],
+        captions: "Try not to laugh|Impossible not to laugh|I lost it at this part",
+      },
+      {
+        title: `The Punchline Nobody Expected — ${shortTitle}`,
+        startTime: "2:15",
+        duration: "0:18",
+        viralityScore: 94,
+        tags: ["punchline", "unexpected", "comedy"],
+        captions: "The punchline is perfect|Nobody expected this|The timing is everything",
+      },
+      {
+        title: `The Improv Moment That Made History`,
+        startTime: "3:00",
+        duration: "0:30",
+        viralityScore: 91,
+        tags: ["improv", "spontaneous", "legendary"],
+        captions: "This wasn't scripted|Pure improv genius|The crowd lost it",
+      },
+      {
+        title: `The Callback That Tied Everything Together`,
+        startTime: "4:30",
+        duration: "0:22",
+        viralityScore: 89,
+        tags: ["callback", "clever", "writing"],
+        captions: "The callback is brilliant|This tied everything together|Masterful comedy writing",
+      }
+    );
+  } else {
+    // Generic but still title-specific clips
+    clips.push(
+      {
+        title: `${shortTitle} — The Best 30 Seconds`,
+        startTime: "0:45",
+        duration: "0:30",
+        viralityScore: 95,
+        tags: ["best moment", "highlight", "must watch"],
+        captions: "This is the best part|The moment everyone shares|You need to see this",
+      },
+      {
+        title: `Why Everyone's Talking About "${shortTitle}"`,
+        startTime: "1:30",
+        duration: "0:35",
+        viralityScore: 93,
+        tags: ["trending", "viral", "everyone talking"],
+        captions: "Here's why this is trending|Everyone is talking about this|The reason it went viral",
+      },
+      {
+        title: `The Part That Changed Everything — ${shortTitle}`,
+        startTime: "2:15",
+        duration: "0:28",
+        viralityScore: 91,
+        tags: ["turning point", "game changer", "moment"],
+        captions: "This changed everything|The turning point right here|A moment that defines the whole video",
+      },
+      {
+        title: `${author ? author + ": " : ""}The Quote That Went Viral`,
+        startTime: "3:00",
+        duration: "0:22",
+        viralityScore: 89,
+        tags: ["viral quote", "powerful", "memorable"],
+        captions: "This quote went viral|So powerful|Everyone is quoting this",
+      },
+      {
+        title: `${shortTitle} — Quick Recap in Under a Minute`,
+        startTime: "0:10",
+        duration: "0:40",
+        viralityScore: 87,
+        tags: ["recap", "summary", "quick version"],
+        captions: "Here's everything you need to know|Quick recap in under a minute|The key takeaways",
+      }
+    );
+  }
+
+  // Add some randomization to timestamps
+  return clips.map((clip, i) => ({
+    ...clip,
+    startTime: `${Math.floor(Math.random() * 6) + i}:${Math.floor(Math.random() * 60)
       .toString()
       .padStart(2, "0")}`,
-    duration: `0:${(Math.floor(Math.random() * 30) + 15)
-      .toString()
-      .padStart(2, "0")}`,
-    viralityScore: Math.floor(Math.random() * 20) + 75,
-    tags: template.tags,
-    captions: template.captions,
+    duration: `0:${(Math.floor(Math.random() * 25) + 15).toString().padStart(2, "0")}`,
   }));
 }
 
@@ -438,7 +693,9 @@ CRITICAL RULES:
     // If AI didn't produce clips, generate fallback based on video title
     if (clipsData.length === 0) {
       clipsData = generateContextualFallbackClips(
-        videoTitle || extractTitleFromUrl(url, platform)
+        videoTitle || extractTitleFromUrl(url, platform),
+        videoMeta.authorName,
+        platform
       );
     }
 
