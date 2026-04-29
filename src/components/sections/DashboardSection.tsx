@@ -33,6 +33,8 @@ import {
   AlertCircle,
   Layers,
   Tag,
+  Shield,
+  Users,
 } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { useAppStore } from "@/lib/store";
@@ -476,13 +478,19 @@ export function DashboardSection() {
           {/* Plan */}
           <div className="bg-white/[0.02] border border-white/5 rounded-xl p-4 flex items-center gap-4">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500/20 to-cyan-500/20 flex items-center justify-center shrink-0">
-              {planIcon || <Eye className="w-5 h-5 text-cyan-400" />}
+              {user?.role === "admin" ? <Shield className="w-5 h-5 text-yellow-400" /> : planIcon || <Eye className="w-5 h-5 text-cyan-400" />}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs text-white/40 mb-1">Current Plan</p>
               <div className="flex items-center gap-2">
+                {user?.role === "admin" && (
+                  <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-md bg-yellow-500/15 text-yellow-400 border border-yellow-500/20 font-medium">
+                    <Shield className="w-3 h-3" />
+                    Admin
+                  </span>
+                )}
                 <span className="text-lg font-bold text-white/90">{planLabel}</span>
-                {user?.plan !== "business" && (
+                {user?.plan !== "business" && user?.role !== "admin" && (
                   <Button
                     size="sm"
                     onClick={() => setCurrentView("settings")}

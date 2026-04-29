@@ -16,6 +16,7 @@ import {
   LogOut,
   Settings,
   Palette,
+  Shield,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useAppStore, type AppView } from "@/lib/store";
@@ -148,14 +149,18 @@ export function Navbar() {
                     className="flex items-center gap-2 hover:bg-white/5"
                   >
                     <Avatar className="w-8 h-8">
-                      <AvatarFallback className="bg-gradient-to-br from-pink-500 to-purple-600 text-white text-xs">
-                        {user.name
-                          ? user.name
-                              .split(" ")
-                              .map((n) => n[0])
-                              .join("")
-                              .toUpperCase()
-                          : user.email[0].toUpperCase()}
+                      <AvatarFallback className={`text-white text-xs ${user.role === "admin" ? "bg-gradient-to-br from-yellow-500 to-orange-600" : "bg-gradient-to-br from-pink-500 to-purple-600"}`}>
+                        {user.role === "admin" ? (
+                          <Shield className="w-4 h-4" />
+                        ) : (
+                          user.name
+                            ? user.name
+                                .split(" ")
+                                .map((n) => n[0])
+                                .join("")
+                                .toUpperCase()
+                            : user.email[0].toUpperCase()
+                        )}
                       </AvatarFallback>
                     </Avatar>
                     <span className="text-sm text-white/80 max-w-[120px] truncate">
@@ -172,9 +177,17 @@ export function Navbar() {
                       {user.name || "User"}
                     </p>
                     <p className="text-xs text-white/40">{user.email}</p>
-                    <p className="text-xs text-pink-400 mt-1 capitalize">
-                      {user.plan} Plan
-                    </p>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      {user.role === "admin" && (
+                        <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-400 border border-yellow-500/30">
+                          <Shield className="w-2.5 h-2.5" />
+                          Admin
+                        </span>
+                      )}
+                      <p className="text-xs text-pink-400 capitalize">
+                        {user.plan} Plan
+                      </p>
+                    </div>
                   </div>
                   <DropdownMenuSeparator className="bg-white/5" />
                   {dashboardLinks.map((link) => (

@@ -13,6 +13,7 @@ model User {
   name          String?
   password      String?
   image         String?
+  role          String    @default("user") // user, admin
   plan          String    @default("free") // free, pro, business
   clipsUsed     Int       @default(0)
   clipsLimit    Int       @default(5)

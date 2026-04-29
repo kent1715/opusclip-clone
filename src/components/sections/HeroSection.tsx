@@ -195,7 +195,7 @@ export function HeroSection() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.6, delay: 0.5 }}
-          className="flex flex-wrap items-center justify-center gap-6 text-sm text-white/30 mb-16"
+          className="flex flex-wrap items-center justify-center gap-6 text-sm text-white/30 mb-4"
         >
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
@@ -208,6 +208,21 @@ export function HeroSection() {
           <span>•</span>
           <span>No Credit Card Required</span>
         </motion.div>
+
+        {/* Test Account Hint */}
+        {!user && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.6, delay: 0.6 }}
+            className="flex items-center justify-center mb-16"
+          >
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-xs text-yellow-400/80">
+              <span className="text-yellow-500">👑</span>
+              <span>Test Admin: <code className="bg-yellow-500/10 px-1.5 py-0.5 rounded text-yellow-300">admin@opusclip.com</code> / <code className="bg-yellow-500/10 px-1.5 py-0.5 rounded text-yellow-300">admin123</code></span>
+            </div>
+          </motion.div>
+        )}
 
         {/* Product Preview */}
         <motion.div

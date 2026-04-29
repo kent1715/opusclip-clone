@@ -343,6 +343,14 @@ export function SettingsSection() {
             <div className="space-y-2">
               <Label className="text-white/60 text-xs">Current Plan</Label>
               <div className="flex items-center gap-2">
+                {user?.role === "admin" && (
+                  <div className="flex items-center gap-1.5 bg-yellow-500/10 border border-yellow-500/20 rounded-lg px-3 py-2.5">
+                    <Shield className="w-4 h-4 text-yellow-400" />
+                    <span className="text-sm font-medium text-yellow-400">
+                      Admin
+                    </span>
+                  </div>
+                )}
                 <div className="flex items-center gap-2 bg-white/[0.03] border border-white/5 rounded-lg px-3 py-2.5">
                   {planIcon}
                   <span className="text-sm font-medium text-white/70">

@@ -64,3 +64,35 @@ Stage Summary:
   - Process Another navigates correctly
   - Apply Template updates all clips with template settings
   - Logout clears session properly
+
+---
+Task ID: 6
+Agent: Main Agent
+Task: Create admin account for testing
+
+Work Log:
+- Added `role` field (String, default "user") to User model in Prisma schema
+- Pushed schema changes to database
+- Updated seed script to create:
+  - Admin account: admin@opusclip.com / admin123 (role: admin, plan: business, clipsLimit: 999)
+  - 3 sample videos for admin (Rick Astley, First YouTube Video, PSY Gangnam Style)
+  - 12 sample clips across the 3 videos with varied virality scores, caption styles, and layouts
+  - Demo account: demo@opusclip.com / demo123 (role: user, plan: free, clipsLimit: 5)
+- Updated Zustand store to include `role` in user type
+- Updated Navbar to show admin Shield badge next to plan info and admin avatar with golden gradient
+- Updated DashboardSection to show admin badge in plan stats card
+- Updated SettingsSection to show admin Shield badge in profile section
+- Updated HeroSection to show test account credentials hint (visible only when not logged in)
+- Updated register API to explicitly set role: "user" for new accounts
+- Regenerated Prisma Client with new role field
+- Verified admin login returns role: "admin" via API test
+- All lint checks pass
+- Dev server running
+
+Stage Summary:
+- Admin account created: admin@opusclip.com / admin123
+- Demo account created: demo@opusclip.com / demo123
+- Admin users get golden Shield avatar, admin badge in navbar/dashboard/settings
+- Admin has business plan with 999 clip limit
+- Sample data (3 videos + 12 clips) pre-populated for admin
+- Test credentials shown on landing page for easy access

@@ -56,6 +56,7 @@ export async function POST(request: Request) {
         email,
         name: name || null,
         password: hashedPassword,
+        role: 'user',
         plan: 'free',
         clipsLimit: 5,
         clipsUsed: 0,

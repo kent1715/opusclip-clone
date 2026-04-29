@@ -12,6 +12,7 @@ interface AppState {
     id: string;
     email: string;
     name: string;
+    role: string;
     plan: string;
     clipsUsed: number;
     clipsLimit: number;
