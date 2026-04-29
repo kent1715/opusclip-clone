@@ -590,15 +590,15 @@ export function ClipEditorSection() {
   const fetchVideo = useCallback(async () => {
     if (!activeVideoId) return;
     try {
-      const res = await fetch(`/api/videos/${activeVideoId}${user?.id ? `?userId=${user.id}` : ''}`);
+      const res = await fetch(`/api/videos/${activeVideoId}?userId=${user?.id || ''}`);
       if (res.ok) {
         const json = await res.json();
-        setVideo(json.data);
+        setVideo(json.data || null);
       }
     } catch (err) {
       console.error("Failed to fetch video:", err);
     }
-  }, [activeVideoId, user?.id]);
+  }, [activeVideoId]); // intentionally not depending on user?.id to avoid infinite loops
 
   const fetchClips = useCallback(async () => {
     if (!activeVideoId) return;
@@ -606,10 +606,13 @@ export function ClipEditorSection() {
       const res = await fetch(`/api/clips?videoId=${activeVideoId}`);
       if (res.ok) {
         const json = await res.json();
-        setClips(json.data || []);
+        setClips(Array.isArray(json.data) ? json.data : []);
+      } else {
+        setClips([]);
       }
     } catch (err) {
       console.error("Failed to fetch clips:", err);
+      setClips([]);
     }
   }, [activeVideoId]);
 
@@ -619,17 +622,24 @@ export function ClipEditorSection() {
       const res = await fetch(`/api/templates${userId ? `?userId=${userId}` : ""}`);
       if (res.ok) {
         const json = await res.json();
-        setTemplates(json.data || []);
+        setTemplates(Array.isArray(json.data) ? json.data : []);
+      } else {
+        setTemplates([]);
       }
     } catch (err) {
       console.error("Failed to fetch templates:", err);
+      setTemplates([]);
     }
   }, [user?.id]);
 
   useEffect(() => {
     const load = async () => {
       setIsLoading(true);
-      await Promise.all([fetchVideo(), fetchClips(), fetchTemplates()]);
+      try {
+        await Promise.all([fetchVideo(), fetchClips(), fetchTemplates()]);
+      } catch (err) {
+        console.error("Failed to load editor data:", err);
+      }
       setIsLoading(false);
     };
     if (activeVideoId) load();

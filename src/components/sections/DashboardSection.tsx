@@ -210,10 +210,13 @@ export function DashboardSection() {
       const res = await fetch(`/api/videos?userId=${user.id}`);
       const data = await res.json();
       if (res.ok && data.success) {
-        setVideos(data.data || []);
+        setVideos(Array.isArray(data.data) ? data.data : []);
+      } else {
+        setVideos([]);
       }
     } catch (err) {
       console.error("Failed to fetch videos:", err);
+      setVideos([]);
     } finally {
       setLoading(false);
     }
