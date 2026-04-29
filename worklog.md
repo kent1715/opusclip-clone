@@ -1,28 +1,35 @@
 ---
-Task ID: 1
-Agent: Main Agent
-Task: Build OpusClip (opus.pro) clone - complete landing page
+Task ID: 2-a to 4
+Agent: Main Agent + Subagents
+Task: Transform OpusClip clone from demo to real web app with all features active
 
 Work Log:
-- Analyzed opus.pro website using VLM and web search to understand design, layout, and features
-- Designed dark theme color system with pink/purple/cyan gradients matching the original site
-- Created globals.css with custom dark theme, animations (float, pulse-glow, gradient-shift, shimmer, slide-up), glass morphism utilities, gradient text utilities, and custom scrollbar
-- Updated layout.tsx with proper OpusClip metadata and dark mode class
-- Built Navbar component with responsive mobile menu (Sheet), scroll-aware background, and gradient CTA button
-- Built Hero Section with animated gradient background, URL input that calls /api/process, product preview mockup with browser chrome, video preview area with loading/success states, and clips panel showing virality scores
-- Built Trusted By Section with brand logos and stats (10M+ users, 50M+ clips, 150+ countries, 4.9/5 rating)
-- Built Features Section with 8 feature cards (ClipAnything, Auto Captions, Virality Score, Brand Templates, Multi-Language, AI B-Roll, AI Reframe, One-Click Publish)
-- Built How It Works Section with 4 steps (Paste Link, AI Analyzes, Generate Clips, Publish Everywhere)
-- Built Pricing Section with 3 tiers (Free $0, Pro $19/mo, Business $49/mo) and popular badge
-- Built Testimonials Section with 6 testimonial cards, carousel navigation, and star ratings
-- Built FAQ Section with 8 questions using shadcn Accordion component
-- Built CTA Section with final conversion prompt
-- Built Footer with 4-column link layout, social icons, and bottom bar
-- Created /api/process endpoint that simulates AI video processing with clip generation
-- All lint checks pass clean
-- Dev server running successfully on port 3000
+- Updated Prisma schema with User, Video, Clip, Template models
+- Pushed schema to database and regenerated Prisma Client
+- Created Zustand app store for SPA navigation and state management
+- Built Auth API routes (register, login, me, update) with SHA-256 password hashing
+- Built Video API routes (CRUD with cascade delete)
+- Built Clip API routes (CRUD with all fields)
+- Built Template API routes (CRUD with default templates)
+- Replaced simulated /api/process with REAL AI-powered processing using z-ai-web-dev-sdk LLM
+- Built AuthModal component with Sign In/Sign Up tabs, social login buttons
+- Built DashboardSection with stats, video list, recent clips, quick process
+- Built ClipEditorSection with video preview, clip list, full editor panel
+- Built TemplatesSection with gallery, creation dialog, apply/delete
+- Built SettingsSection with profile, subscription, usage, danger zone
+- Updated Navbar to switch between landing and dashboard navigation
+- Updated HeroSection to require auth for processing and navigate to editor
+- Updated PricingSection and CTASection to use store for navigation
+- Updated page.tsx as SPA router with localStorage session persistence
+- Seeded database with 6 default templates
+- All lint checks pass
+- Full E2E flow tested: signup → dashboard → process video → editor
 
 Stage Summary:
-- Complete OpusClip clone with dark theme, all major sections, and interactive video processing demo
-- Technology: Next.js 16, TypeScript, Tailwind CSS, shadcn/ui, Framer Motion
-- API: POST /api/process for video clip generation simulation
+- Fully functional web app with real AI-powered video processing
+- Auth system with registration, login, session persistence
+- Dashboard with video management and stats
+- Clip editor with captions, templates, layouts, virality scores
+- Templates gallery with create/apply/delete
+- Settings with profile editing and subscription display
+- All features are real and functional, not just demos

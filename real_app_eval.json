@@ -1,0 +1,28 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "The landing page appears to be rendering correctly. All key elements are visible and properly positioned:  \n\n- The **header** includes the OpusClip logo, navigation menu (Features, How It Works, Pricing, FAQ, Sign In), and a “Get Started Free” button.  \n- A subheading (“Powered by ClipAnything AI — Now with GPT-4o”) is displayed below the header.  \n- The main headline (“Turn Any Video Into Viral Clips with AI”) uses bold, colorful typography.  \n- A descriptive paragraph explains OpusClip’s purpose.  \n- A video link input field (“Paste a YouTube, TikTok, or Vimeo link…”) with a “Get Clips” button is present.  \n- A small “1 Issue” notification badge is visible in the bottom-left, but this does not indicate a broken layout (it may be a UI element like a notification).  \n\n\nNo obvious errors or broken layout issues are apparent—all text, buttons, and UI components are displayed as expected, with no misalignment, missing elements, or visual distortions.",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1777437888,
+  "id": "2026042912444209681d51b6664df8",
+  "model": "glm-4.6v",
+  "object": "chat.completion",
+  "request_id": "2026042912444209681d51b6664df8",
+  "usage": {
+    "completion_tokens": 219,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "prompt_tokens": 996,
+    "prompt_tokens_details": {
+      "cached_tokens": 4
+    },
+    "total_tokens": 1215
+  }
+}

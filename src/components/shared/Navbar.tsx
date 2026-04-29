@@ -8,20 +8,56 @@ import {
   SheetTrigger,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { Menu, Play, ChevronDown } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import {
+  Menu,
+  Play,
+  ChevronDown,
+  LayoutDashboard,
+  LogOut,
+  Settings,
+  Palette,
+} from "lucide-react";
+import { motion } from "framer-motion";
+import { useAppStore, type AppView } from "@/lib/store";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
-const navLinks = [
-  { label: "Products", href: "#features", hasDropdown: true },
+const publicLinks = [
+  { label: "Features", href: "#features" },
   { label: "How It Works", href: "#how-it-works" },
   { label: "Pricing", href: "#pricing" },
-  { label: "Testimonials", href: "#testimonials" },
   { label: "FAQ", href: "#faq" },
+];
+
+const dashboardLinks: {
+  label: string;
+  view: AppView;
+  icon: React.ElementType;
+}[] = [
+  { label: "Dashboard", view: "dashboard", icon: LayoutDashboard },
+  { label: "Templates", view: "templates", icon: Palette },
+  { label: "Settings", view: "settings", icon: Settings },
 ];
 
 export function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const {
+    user,
+    currentView,
+    setCurrentView,
+    setShowAuthModal,
+    setAuthModalTab,
+    setUser,
+  } = useAppStore();
+
+  const isDashboard = currentView !== "landing";
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -35,13 +71,18 @@ export function Navbar() {
     if (el) el.scrollIntoView({ behavior: "smooth" });
   };
 
+  const handleLogout = () => {
+    setUser(null);
+    setCurrentView("landing");
+  };
+
   return (
     <motion.header
       initial={{ y: -100 }}
       animate={{ y: 0 }}
       transition={{ duration: 0.5, ease: "easeOut" }}
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        scrolled
+        scrolled || isDashboard
           ? "bg-background/80 backdrop-blur-xl border-b border-white/5 shadow-lg shadow-black/20"
           : "bg-transparent"
       }`}
@@ -49,42 +90,129 @@ export function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 md:h-20">
           {/* Logo */}
-          <div className="flex items-center gap-2">
+          <button
+            onClick={() => setCurrentView(user ? "dashboard" : "landing")}
+            className="flex items-center gap-2"
+          >
             <div className="relative w-9 h-9 rounded-xl bg-gradient-to-br from-pink-500 via-purple-500 to-cyan-400 flex items-center justify-center">
               <Play className="w-4 h-4 text-white fill-white ml-0.5" />
             </div>
             <span className="text-xl font-bold text-white tracking-tight">
               Opus<span className="gradient-text">Clip</span>
             </span>
-          </div>
+          </button>
 
           {/* Desktop Nav */}
-          <nav className="hidden md:flex items-center gap-1">
-            {navLinks.map((link) => (
-              <button
-                key={link.label}
-                onClick={() => handleLinkClick(link.href)}
-                className="relative px-4 py-2 text-sm text-white/70 hover:text-white transition-colors rounded-lg hover:bg-white/5 group flex items-center gap-1"
-              >
-                {link.label}
-                {link.hasDropdown && (
-                  <ChevronDown className="w-3 h-3 transition-transform group-hover:rotate-180" />
-                )}
-              </button>
-            ))}
-          </nav>
+          {user && isDashboard ? (
+            <nav className="hidden md:flex items-center gap-1">
+              {dashboardLinks.map((link) => (
+                <button
+                  key={link.label}
+                  onClick={() => setCurrentView(link.view)}
+                  className={`flex items-center gap-2 px-4 py-2 text-sm rounded-lg transition-colors ${
+                    currentView === link.view
+                      ? "text-white bg-white/10"
+                      : "text-white/60 hover:text-white hover:bg-white/5"
+                  }`}
+                >
+                  <link.icon className="w-4 h-4" />
+                  {link.label}
+                </button>
+              ))}
+            </nav>
+          ) : (
+            <nav className="hidden md:flex items-center gap-1">
+              {publicLinks.map((link) => (
+                <button
+                  key={link.label}
+                  onClick={() => handleLinkClick(link.href)}
+                  className="relative px-4 py-2 text-sm text-white/70 hover:text-white transition-colors rounded-lg hover:bg-white/5 group flex items-center gap-1"
+                >
+                  {link.label}
+                  {link.label === "Features" && (
+                    <ChevronDown className="w-3 h-3 transition-transform group-hover:rotate-180" />
+                  )}
+                </button>
+              ))}
+            </nav>
+          )}
 
-          {/* Desktop CTA */}
+          {/* Desktop CTA / User Menu */}
           <div className="hidden md:flex items-center gap-3">
-            <Button
-              variant="ghost"
-              className="text-white/70 hover:text-white hover:bg-white/5"
-            >
-              Sign In
-            </Button>
-            <Button className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white border-0 shadow-lg shadow-pink-500/25 hover:shadow-pink-500/40 transition-all duration-300 px-6">
-              Get Started Free
-            </Button>
+            {user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className="flex items-center gap-2 hover:bg-white/5"
+                  >
+                    <Avatar className="w-8 h-8">
+                      <AvatarFallback className="bg-gradient-to-br from-pink-500 to-purple-600 text-white text-xs">
+                        {user.name
+                          ? user.name
+                              .split(" ")
+                              .map((n) => n[0])
+                              .join("")
+                              .toUpperCase()
+                          : user.email[0].toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="text-sm text-white/80 max-w-[120px] truncate">
+                      {user.name || user.email}
+                    </span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="end"
+                  className="bg-[#12121a] border-white/10"
+                >
+                  <div className="px-3 py-2">
+                    <p className="text-sm text-white font-medium">
+                      {user.name || "User"}
+                    </p>
+                    <p className="text-xs text-white/40">{user.email}</p>
+                    <p className="text-xs text-pink-400 mt-1 capitalize">
+                      {user.plan} Plan
+                    </p>
+                  </div>
+                  <DropdownMenuSeparator className="bg-white/5" />
+                  {dashboardLinks.map((link) => (
+                    <DropdownMenuItem
+                      key={link.label}
+                      onClick={() => setCurrentView(link.view)}
+                      className="text-white/70 hover:text-white focus:text-white hover:bg-white/5 focus:bg-white/5 cursor-pointer"
+                    >
+                      <link.icon className="w-4 h-4 mr-2" />
+                      {link.label}
+                    </DropdownMenuItem>
+                  ))}
+                  <DropdownMenuSeparator className="bg-white/5" />
+                  <DropdownMenuItem
+                    onClick={handleLogout}
+                    className="text-red-400 hover:text-red-300 focus:text-red-300 hover:bg-white/5 focus:bg-white/5 cursor-pointer"
+                  >
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Sign Out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <>
+                <Button
+                  variant="ghost"
+                  onClick={() => setAuthModalTab("signin")}
+                  className="text-white/70 hover:text-white hover:bg-white/5"
+                >
+                  Sign In
+                </Button>
+                <Button
+                  onClick={() => setAuthModalTab("signup")}
+                  className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white border-0 shadow-lg shadow-pink-500/25 hover:shadow-pink-500/40 transition-all duration-300 px-6"
+                >
+                  Get Started Free
+                </Button>
+              </>
+            )}
           </div>
 
           {/* Mobile Menu */}
@@ -102,25 +230,75 @@ export function Navbar() {
                 OpusClip
               </SheetTitle>
               <div className="flex flex-col gap-2 mt-4">
-                {navLinks.map((link) => (
-                  <button
-                    key={link.label}
-                    onClick={() => handleLinkClick(link.href)}
-                    className="text-left px-4 py-3 text-white/70 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
-                  >
-                    {link.label}
-                  </button>
-                ))}
+                {user && isDashboard
+                  ? dashboardLinks.map((link) => (
+                      <button
+                        key={link.label}
+                        onClick={() => {
+                          setCurrentView(link.view);
+                          setMobileOpen(false);
+                        }}
+                        className={`flex items-center gap-3 text-left px-4 py-3 rounded-lg transition-colors ${
+                          currentView === link.view
+                            ? "text-white bg-white/10"
+                            : "text-white/70 hover:text-white hover:bg-white/5"
+                        }`}
+                      >
+                        <link.icon className="w-5 h-5" />
+                        {link.label}
+                      </button>
+                    ))
+                  : publicLinks.map((link) => (
+                      <button
+                        key={link.label}
+                        onClick={() => handleLinkClick(link.href)}
+                        className="text-left px-4 py-3 text-white/70 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+                      >
+                        {link.label}
+                      </button>
+                    ))}
+
                 <div className="border-t border-white/10 mt-4 pt-4 space-y-3">
-                  <Button
-                    variant="ghost"
-                    className="w-full text-white/70 hover:text-white hover:bg-white/5 justify-start"
-                  >
-                    Sign In
-                  </Button>
-                  <Button className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white border-0">
-                    Get Started Free
-                  </Button>
+                  {user ? (
+                    <>
+                      <div className="px-4 py-2">
+                        <p className="text-sm text-white font-medium">
+                          {user.name}
+                        </p>
+                        <p className="text-xs text-white/40">{user.email}</p>
+                      </div>
+                      <Button
+                        onClick={handleLogout}
+                        variant="ghost"
+                        className="w-full text-red-400 hover:text-red-300 hover:bg-white/5 justify-start"
+                      >
+                        <LogOut className="w-4 h-4 mr-2" />
+                        Sign Out
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button
+                        variant="ghost"
+                        onClick={() => {
+                          setAuthModalTab("signin");
+                          setMobileOpen(false);
+                        }}
+                        className="w-full text-white/70 hover:text-white hover:bg-white/5 justify-start"
+                      >
+                        Sign In
+                      </Button>
+                      <Button
+                        onClick={() => {
+                          setAuthModalTab("signup");
+                          setMobileOpen(false);
+                        }}
+                        className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white border-0"
+                      >
+                        Get Started Free
+                      </Button>
+                    </>
+                  )}
                 </div>
               </div>
             </SheetContent>

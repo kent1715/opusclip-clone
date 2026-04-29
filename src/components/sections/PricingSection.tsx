@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Check, Sparkles, Zap, Crown } from "lucide-react";
+import { useAppStore } from "@/lib/store";
 
 const plans = [
   {
@@ -75,6 +76,21 @@ const plans = [
 ];
 
 export function PricingSection() {
+  const { user, setAuthModalTab, setCurrentView } = useAppStore();
+
+  const handlePlanClick = (planName: string) => {
+    if (!user) {
+      setAuthModalTab("signup");
+      return;
+    }
+    // If user is already logged in and clicks a paid plan, navigate to settings
+    if (planName !== "Free") {
+      setCurrentView("settings");
+    } else {
+      setCurrentView("dashboard");
+    }
+  };
+
   return (
     <section id="pricing" className="relative py-24 md:py-32">
       {/* Background */}
@@ -143,6 +159,7 @@ export function PricingSection() {
 
               {/* CTA Button */}
               <Button
+                onClick={() => handlePlanClick(plan.name)}
                 className={`w-full mb-6 ${plan.buttonGradient} border-0 h-12 text-sm font-semibold rounded-xl transition-all duration-300`}
               >
                 {plan.cta}

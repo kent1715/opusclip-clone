@@ -3,8 +3,19 @@
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Sparkles } from "lucide-react";
+import { useAppStore } from "@/lib/store";
 
 export function CTASection() {
+  const { user, setAuthModalTab, setCurrentView } = useAppStore();
+
+  const handleGetStarted = () => {
+    if (user) {
+      setCurrentView("dashboard");
+    } else {
+      setAuthModalTab("signup");
+    }
+  };
+
   return (
     <section className="relative py-24 md:py-32 overflow-hidden">
       {/* Background */}
@@ -40,17 +51,22 @@ export function CTASection() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Button
               size="lg"
+              onClick={handleGetStarted}
               className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white border-0 shadow-lg shadow-pink-500/25 hover:shadow-pink-500/40 transition-all duration-300 px-8 h-14 text-base font-semibold rounded-xl"
             >
-              Get Started Free
+              {user ? "Go to Dashboard" : "Get Started Free"}
               <ArrowRight className="w-5 h-5 ml-2" />
             </Button>
             <Button
               variant="ghost"
               size="lg"
+              onClick={() => {
+                const el = document.querySelector("#how-it-works");
+                if (el) el.scrollIntoView({ behavior: "smooth" });
+              }}
               className="text-white/60 hover:text-white hover:bg-white/5 h-14 px-8 rounded-xl"
             >
-              Watch Demo
+              See How It Works
             </Button>
           </div>
 

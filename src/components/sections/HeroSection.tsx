@@ -13,6 +13,7 @@ import {
   Clock,
 } from "lucide-react";
 import { useState, useCallback } from "react";
+import { useAppStore } from "@/lib/store";
 
 interface Clip {
   id: string;
@@ -30,9 +31,16 @@ export function HeroSection() {
   const [loading, setLoading] = useState(false);
   const [clips, setClips] = useState<Clip[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { user, setAuthModalTab, setCurrentView, setActiveVideoId } = useAppStore();
 
   const handleProcess = useCallback(async () => {
     if (!url.trim()) return;
+
+    // If not logged in, prompt sign up first
+    if (!user) {
+      setAuthModalTab("signup");
+      return;
+    }
 
     setLoading(true);
     setError(null);
@@ -42,7 +50,7 @@ export function HeroSection() {
       const res = await fetch("/api/process", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: url.trim() }),
+        body: JSON.stringify({ url: url.trim(), userId: user.id }),
       });
 
       const data = await res.json();
@@ -52,6 +60,11 @@ export function HeroSection() {
       }
 
       setClips(data.data.clips);
+      // If video was created, navigate to editor
+      if (data.data.videoId) {
+        setActiveVideoId(data.data.videoId);
+        setTimeout(() => setCurrentView("editor"), 1500);
+      }
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Something went wrong"
@@ -59,7 +72,7 @@ export function HeroSection() {
     } finally {
       setLoading(false);
     }
-  }, [url]);
+  }, [url, user, setAuthModalTab, setCurrentView, setActiveVideoId]);
 
   const defaultClips = [
     { title: "The Future of AI", score: 97, duration: "0:58" },

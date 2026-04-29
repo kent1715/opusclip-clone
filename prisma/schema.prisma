@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -14,19 +8,67 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  password      String?
+  image         String?
+  plan          String    @default("free") // free, pro, business
+  clipsUsed     Int       @default(0)
+  clipsLimit    Int       @default(5)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  videos        Video[]
+  templates     Template[]
 }
 
-model Post {
-  id        String   @id @default(cuid())
-  title     String
-  content   String?
-  published Boolean  @default(false)
-  authorId  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+model Video {
+  id            String    @id @default(cuid())
+  userId        String
+  sourceUrl     String
+  title         String?
+  thumbnailUrl  String?
+  duration      String?
+  status        String    @default("processing") // processing, completed, failed
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clips         Clip[]
+}
+
+model Clip {
+  id            String    @id @default(cuid())
+  videoId       String
+  title         String
+  startTime     String    @default("0:00")
+  duration      String    @default("0:30")
+  viralityScore Int       @default(0)
+  captions      String?   // JSON string of caption segments
+  captionStyle  String    @default("default") // default, bold, karaoke, outline
+  layout        String    @default("9:16") // 9:16, 1:1, 16:9
+  templateId    String?
+  tags          String    @default("[]") // JSON array of tags
+  isPublished   Boolean   @default(false)
+  publishedTo   String    @default("[]") // JSON array of platforms
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  video         Video     @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  template      Template? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+}
+
+model Template {
+  id            String    @id @default(cuid())
+  userId        String?
+  name          String
+  description   String?
+  colors        String    @default("{}") // JSON: { primary, secondary, bg, text }
+  font          String    @default("Inter")
+  logoPosition  String    @default("bottom-right")
+  captionStyle  String    @default("default")
+  layout        String    @default("9:16")
+  isDefault     Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  user          User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clips         Clip[]
 }

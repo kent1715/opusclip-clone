@@ -1,0 +1,484 @@
+"use client";
+
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Loader2, Mail, Lock, User, Github } from "lucide-react";
+import { useAppStore } from "@/lib/store";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+
+export function AuthModal() {
+  const {
+    showAuthModal,
+    authModalTab,
+    setShowAuthModal,
+    setAuthModalTab,
+    setUser,
+    setCurrentView,
+  } = useAppStore();
+
+  // Sign In state
+  const [signInEmail, setSignInEmail] = useState("");
+  const [signInPassword, setSignInPassword] = useState("");
+  const [signInError, setSignInError] = useState("");
+  const [signInLoading, setSignInLoading] = useState(false);
+
+  // Sign Up state
+  const [signUpName, setSignUpName] = useState("");
+  const [signUpEmail, setSignUpEmail] = useState("");
+  const [signUpPassword, setSignUpPassword] = useState("");
+  const [signUpConfirmPassword, setSignUpConfirmPassword] = useState("");
+  const [signUpError, setSignUpError] = useState("");
+  const [signUpLoading, setSignUpLoading] = useState(false);
+
+  const resetForm = () => {
+    setSignInEmail("");
+    setSignInPassword("");
+    setSignInError("");
+    setSignInLoading(false);
+    setSignUpName("");
+    setSignUpEmail("");
+    setSignUpPassword("");
+    setSignUpConfirmPassword("");
+    setSignUpError("");
+    setSignUpLoading(false);
+  };
+
+  const handleSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSignInError("");
+
+    if (!signInEmail || !signInPassword) {
+      setSignInError("Please fill in all fields");
+      return;
+    }
+
+    setSignInLoading(true);
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: signInEmail, password: signInPassword }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setSignInError(data.error || "Login failed");
+        return;
+      }
+
+      setUser(data.user);
+      setShowAuthModal(false);
+      setCurrentView("dashboard");
+      resetForm();
+    } catch {
+      setSignInError("Something went wrong. Please try again.");
+    } finally {
+      setSignInLoading(false);
+    }
+  };
+
+  const handleSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSignUpError("");
+
+    if (!signUpName || !signUpEmail || !signUpPassword || !signUpConfirmPassword) {
+      setSignUpError("Please fill in all fields");
+      return;
+    }
+
+    if (signUpPassword !== signUpConfirmPassword) {
+      setSignUpError("Passwords do not match");
+      return;
+    }
+
+    if (signUpPassword.length < 6) {
+      setSignUpError("Password must be at least 6 characters");
+      return;
+    }
+
+    setSignUpLoading(true);
+    try {
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: signUpEmail,
+          name: signUpName,
+          password: signUpPassword,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setSignUpError(data.error || "Registration failed");
+        return;
+      }
+
+      setUser(data.user);
+      setShowAuthModal(false);
+      setCurrentView("dashboard");
+      resetForm();
+    } catch {
+      setSignUpError("Something went wrong. Please try again.");
+    } finally {
+      setSignUpLoading(false);
+    }
+  };
+
+  const handleTabChange = (value: string) => {
+    setAuthModalTab(value as "signin" | "signup");
+    setSignInError("");
+    setSignUpError("");
+  };
+
+  return (
+    <Dialog
+      open={showAuthModal}
+      onOpenChange={(open) => {
+        if (!open) {
+          setShowAuthModal(false);
+          resetForm();
+        }
+      }}
+    >
+      <DialogContent
+        className="sm:max-w-[440px] bg-[#12121a] border-white/10 text-white p-0 overflow-hidden"
+        showCloseButton={true}
+      >
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={authModalTab}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+          >
+            {/* Gradient accent line at top */}
+            <div className="h-1 w-full bg-gradient-to-r from-pink-500 via-purple-500 to-cyan-400" />
+
+            <div className="px-6 pt-6 pb-2">
+              <DialogHeader>
+                <DialogTitle className="text-xl font-bold text-white text-center">
+                  {authModalTab === "signin" ? "Welcome Back" : "Create Account"}
+                </DialogTitle>
+                <DialogDescription className="text-white/50 text-center text-sm">
+                  {authModalTab === "signin"
+                    ? "Sign in to continue creating viral clips"
+                    : "Join OpusClip and start creating viral clips"}
+                </DialogDescription>
+              </DialogHeader>
+            </div>
+
+            <Tabs
+              value={authModalTab}
+              onValueChange={handleTabChange}
+              className="w-full"
+            >
+              <div className="px-6">
+                <TabsList className="w-full bg-white/5 h-10 p-1 rounded-lg">
+                  <TabsTrigger
+                    value="signin"
+                    className="flex-1 rounded-md text-sm font-medium data-[state=active]:bg-white/10 data-[state=active]:text-white data-[state=active]:shadow-sm text-white/50 hover:text-white/70 transition-colors"
+                  >
+                    Sign In
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="signup"
+                    className="flex-1 rounded-md text-sm font-medium data-[state=active]:bg-white/10 data-[state=active]:text-white data-[state=active]:shadow-sm text-white/50 hover:text-white/70 transition-colors"
+                  >
+                    Sign Up
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+
+              {/* Sign In Tab */}
+              <TabsContent value="signin" className="px-6 pb-6 pt-4">
+                <form onSubmit={handleSignIn} className="space-y-4">
+                  {signInError && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="rounded-lg bg-red-500/10 border border-red-500/20 px-4 py-3 text-sm text-red-400"
+                    >
+                      {signInError}
+                    </motion.div>
+                  )}
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-white/70">
+                      Email
+                    </label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-white/30" />
+                      <Input
+                        type="email"
+                        placeholder="you@example.com"
+                        value={signInEmail}
+                        onChange={(e) => setSignInEmail(e.target.value)}
+                        className="h-11 bg-white/5 border-white/10 text-white placeholder:text-white/30 pl-10 focus-visible:border-pink-500/50 focus-visible:ring-pink-500/20"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-white/70">
+                      Password
+                    </label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-white/30" />
+                      <Input
+                        type="password"
+                        placeholder="Enter your password"
+                        value={signInPassword}
+                        onChange={(e) => setSignInPassword(e.target.value)}
+                        className="h-11 bg-white/5 border-white/10 text-white placeholder:text-white/30 pl-10 focus-visible:border-pink-500/50 focus-visible:ring-pink-500/20"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      className="text-xs text-pink-400 hover:text-pink-300 transition-colors"
+                    >
+                      Forgot password?
+                    </button>
+                  </div>
+
+                  <Button
+                    type="submit"
+                    disabled={signInLoading}
+                    className="w-full h-11 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-semibold rounded-lg transition-all duration-200 shadow-lg shadow-pink-500/20 hover:shadow-pink-500/30 disabled:opacity-50"
+                  >
+                    {signInLoading ? (
+                      <>
+                        <Loader2 className="size-4 animate-spin" />
+                        Signing in...
+                      </>
+                    ) : (
+                      "Sign In"
+                    )}
+                  </Button>
+
+                  {/* Divider */}
+                  <div className="relative my-5">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-white/10" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-[#12121a] px-3 text-white/30">
+                        Or continue with
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Social buttons */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-11 bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:text-white transition-colors"
+                    >
+                      <svg className="size-4 mr-2" viewBox="0 0 24 24">
+                        <path
+                          d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"
+                          fill="#4285F4"
+                        />
+                        <path
+                          d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                          fill="#34A853"
+                        />
+                        <path
+                          d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                          fill="#FBBC05"
+                        />
+                        <path
+                          d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                          fill="#EA4335"
+                        />
+                      </svg>
+                      Google
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-11 bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:text-white transition-colors"
+                    >
+                      <Github className="size-4 mr-2" />
+                      GitHub
+                    </Button>
+                  </div>
+                </form>
+              </TabsContent>
+
+              {/* Sign Up Tab */}
+              <TabsContent value="signup" className="px-6 pb-6 pt-4">
+                <form onSubmit={handleSignUp} className="space-y-4">
+                  {signUpError && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="rounded-lg bg-red-500/10 border border-red-500/20 px-4 py-3 text-sm text-red-400"
+                    >
+                      {signUpError}
+                    </motion.div>
+                  )}
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-white/70">
+                      Name
+                    </label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-white/30" />
+                      <Input
+                        type="text"
+                        placeholder="Your name"
+                        value={signUpName}
+                        onChange={(e) => setSignUpName(e.target.value)}
+                        className="h-11 bg-white/5 border-white/10 text-white placeholder:text-white/30 pl-10 focus-visible:border-pink-500/50 focus-visible:ring-pink-500/20"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-white/70">
+                      Email
+                    </label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-white/30" />
+                      <Input
+                        type="email"
+                        placeholder="you@example.com"
+                        value={signUpEmail}
+                        onChange={(e) => setSignUpEmail(e.target.value)}
+                        className="h-11 bg-white/5 border-white/10 text-white placeholder:text-white/30 pl-10 focus-visible:border-pink-500/50 focus-visible:ring-pink-500/20"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-white/70">
+                      Password
+                    </label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-white/30" />
+                      <Input
+                        type="password"
+                        placeholder="At least 6 characters"
+                        value={signUpPassword}
+                        onChange={(e) => setSignUpPassword(e.target.value)}
+                        className="h-11 bg-white/5 border-white/10 text-white placeholder:text-white/30 pl-10 focus-visible:border-pink-500/50 focus-visible:ring-pink-500/20"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-white/70">
+                      Confirm Password
+                    </label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-white/30" />
+                      <Input
+                        type="password"
+                        placeholder="Confirm your password"
+                        value={signUpConfirmPassword}
+                        onChange={(e) => setSignUpConfirmPassword(e.target.value)}
+                        className="h-11 bg-white/5 border-white/10 text-white placeholder:text-white/30 pl-10 focus-visible:border-pink-500/50 focus-visible:ring-pink-500/20"
+                      />
+                    </div>
+                  </div>
+
+                  <Button
+                    type="submit"
+                    disabled={signUpLoading}
+                    className="w-full h-11 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-semibold rounded-lg transition-all duration-200 shadow-lg shadow-pink-500/20 hover:shadow-pink-500/30 disabled:opacity-50"
+                  >
+                    {signUpLoading ? (
+                      <>
+                        <Loader2 className="size-4 animate-spin" />
+                        Creating account...
+                      </>
+                    ) : (
+                      "Create Account"
+                    )}
+                  </Button>
+
+                  {/* Divider */}
+                  <div className="relative my-5">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-white/10" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-[#12121a] px-3 text-white/30">
+                        Or continue with
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Social buttons */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-11 bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:text-white transition-colors"
+                    >
+                      <svg className="size-4 mr-2" viewBox="0 0 24 24">
+                        <path
+                          d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"
+                          fill="#4285F4"
+                        />
+                        <path
+                          d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                          fill="#34A853"
+                        />
+                        <path
+                          d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                          fill="#FBBC05"
+                        />
+                        <path
+                          d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                          fill="#EA4335"
+                        />
+                      </svg>
+                      Google
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-11 bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:text-white transition-colors"
+                    >
+                      <Github className="size-4 mr-2" />
+                      GitHub
+                    </Button>
+                  </div>
+
+                  <p className="text-xs text-white/30 text-center pt-2">
+                    By creating an account, you agree to our{" "}
+                    <span className="text-white/50 hover:text-white/70 cursor-pointer transition-colors">
+                      Terms of Service
+                    </span>{" "}
+                    and{" "}
+                    <span className="text-white/50 hover:text-white/70 cursor-pointer transition-colors">
+                      Privacy Policy
+                    </span>
+                  </p>
+                </form>
+              </TabsContent>
+            </Tabs>
+          </motion.div>
+        </AnimatePresence>
+      </DialogContent>
+    </Dialog>
+  );
+}
