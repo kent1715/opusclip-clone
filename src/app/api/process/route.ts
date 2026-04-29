@@ -171,26 +171,71 @@ export async function POST(request: Request) {
 
 // Fallback clip generator - used when AI is unavailable
 function generateFallbackClips() {
-  const titles = [
-    "The Key Insight That Changes Everything",
-    "Why Top Creators Use This Strategy",
-    "The Secret to Going Viral in 2025",
-    "This Moment Shocked Everyone",
-    "The #1 Mistake Most Creators Make",
+  const clipPool = [
+    {
+      title: "This Moment Changed Everything — You Won't Believe It!",
+      tags: ["Intense moment", "Must watch", "Viral highlight"],
+      captions: "This changes everything|You have to see this|Absolutely incredible",
+    },
+    {
+      title: "The Secret Strategy Top Creators Don't Want You to Know",
+      tags: ["Behind the scenes", "Creator tips", "Strategy reveal"],
+      captions: "Nobody talks about this|This is the real secret|Game changer right here",
+    },
+    {
+      title: "When This Happened, The Whole Room Went Silent",
+      tags: ["Shocking moment", "Unexpected", "Crowd reaction"],
+      captions: "Nobody expected this|The silence was deafening|Pure shock on every face",
+    },
+    {
+      title: "3-Second Clip That Broke The Internet Overnight",
+      tags: ["Internet famous", "Trending now", "Overnight viral"],
+      captions: "This went viral overnight|Millions of views in hours|The internet can't stop sharing",
+    },
+    {
+      title: "The Comeback Nobody Saw Coming — Epic Finale!",
+      tags: ["Epic comeback", "Underdog story", "Inspiring moment"],
+      captions: "Everyone counted them out|But they came back stronger|This is what legends are made of",
+    },
+    {
+      title: "Stop Scrolling — This Is The Clip Everyone's Talking About",
+      tags: ["Stop scrolling", "Must see", "Everyone talking"],
+      captions: "You need to see this|This is blowing up right now|Don't miss this moment",
+    },
+    {
+      title: "The Exact Moment Everything Shifted — Pure Genius!",
+      tags: ["Genius move", "Turning point", "Brilliant strategy"],
+      captions: "This is pure genius|The turning point right here|Everything changed in this moment",
+    },
+    {
+      title: "Why This 30-Second Clip Got 10M Views Explained",
+      tags: ["Viral breakdown", "View explosion", "Content analysis"],
+      captions: "10 million views for this|Here's why it worked|The algorithm loved this",
+    },
+    {
+      title: "You'll Watch This 5 Times — It Gets Better Every Time!",
+      tags: ["Rewatch value", "Satisfying", "Can't look away"],
+      captions: "Watch it again|Did you catch that|Every time it gets better",
+    },
+    {
+      title: "The Emotional Moment That Had Everyone In Tears",
+      tags: ["Emotional", "Heartwarming", "Tear jerker"],
+      captions: "I'm not crying you are|This hit different|Pure emotion in this moment",
+    },
   ];
 
-  return titles.map((title, i) => ({
-    title,
-    startTime: `${Math.floor(Math.random() * 5) + i}:${Math.floor(Math.random() * 60)
+  // Pick 5 random clips from the pool
+  const shuffled = clipPool.sort(() => Math.random() - 0.5).slice(0, 5);
+
+  return shuffled.map((clip, i) => ({
+    title: clip.title,
+    startTime: `${Math.floor(Math.random() * 8) + i}:${Math.floor(Math.random() * 60)
       .toString()
       .padStart(2, "0")}`,
-    duration: `0:${Math.floor(Math.random() * 30) + 15}`,
-    viralityScore: Math.floor(Math.random() * 15) + 85,
-    tags: ["viral", "trending", "engaging"].slice(
-      0,
-      Math.floor(Math.random() * 3) + 1
-    ),
-    captions: "This is a viral moment|Watch what happens next|Incredible insight",
+    duration: `0:${(Math.floor(Math.random() * 30) + 15).toString().padStart(2, "0")}`,
+    viralityScore: Math.floor(Math.random() * 15) + 85, // 85-99
+    tags: clip.tags,
+    captions: clip.captions,
   }));
 }
 
