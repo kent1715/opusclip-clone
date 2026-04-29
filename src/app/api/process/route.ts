@@ -54,13 +54,24 @@ export async function POST(request: Request) {
       },
     });
 
+    // Try AI processing with fallback
+    let videoTitle: string | null = null;
+    let clipsData: Array<{
+      title: string;
+      startTime: string;
+      duration: string;
+      viralityScore: number;
+      tags: string[];
+      captions: string;
+    }> = generateFallbackClips();
+
     try {
       // Use z-ai-web-dev-sdk LLM to analyze the video and generate clip recommendations
       const zai = await ZAI.create();
       const completion = await zai.chat.completions.create({
         messages: [
           {
-            role: "system",
+            role: "assistant",
             content:
               "You are an expert viral content analyst. Given a video URL, generate 5 short clip suggestions that would perform well on social media. Return ONLY valid JSON in this format:\n{\n  \"title\": \"Video Title\",\n  \"clips\": [\n    {\n      \"title\": \"Compelling clip title\",\n      \"startTime\": \"1:23\",\n      \"duration\": \"0:45\",\n      \"viralityScore\": 92,\n      \"tags\": [\"viral\", \"trending\"],\n      \"captions\": \"First line of caption|Second line of caption|Third line\"\n    }\n  ]\n}",
           },
@@ -74,36 +85,28 @@ export async function POST(request: Request) {
 
       // Extract the response content
       const responseContent = completion.choices?.[0]?.message?.content || "";
-      let parsedData: {
-        title?: string;
-        clips?: Array<{
-          title: string;
-          startTime: string;
-          duration: string;
-          viralityScore: number;
-          tags: string[];
-          captions: string;
-        }>;
-      };
 
       try {
         // Try to extract JSON from the response (may be wrapped in markdown code blocks)
         const jsonMatch = responseContent.match(/```(?:json)?\s*([\s\S]*?)```/);
         const jsonStr = jsonMatch ? jsonMatch[1] : responseContent;
-        parsedData = JSON.parse(jsonStr.trim());
-      } catch {
-        // If parsing fails, use fallback data
-        console.error("Failed to parse LLM response, using fallback");
-        parsedData = {
-          title: "Video Analysis",
-          clips: generateFallbackClips(),
-        };
+        const parsedData = JSON.parse(jsonStr.trim());
+
+        if (parsedData.title) videoTitle = parsedData.title;
+        if (parsedData.clips && Array.isArray(parsedData.clips) && parsedData.clips.length > 0) {
+          clipsData = parsedData.clips;
+        }
+      } catch (parseError) {
+        // If parsing fails, use fallback data (already set above)
+        console.error("Failed to parse LLM response, using fallback:", parseError);
       }
+    } catch (aiError) {
+      // If AI processing fails entirely, use fallback clips
+      console.error("AI processing error, using fallback clips:", aiError);
+    }
 
-      const videoTitle = parsedData.title || null;
-      const clipsData = parsedData.clips || generateFallbackClips();
-
-      // Create Clip records in DB for each generated clip
+    // Always create clips (either from AI or fallback)
+    try {
       const clipRecords = await Promise.all(
         clipsData.map((clip) =>
           db.clip.create({
@@ -142,16 +145,18 @@ export async function POST(request: Request) {
         success: true,
         data: updatedVideo,
       });
-    } catch (aiError) {
-      // If AI processing fails, mark video as failed
-      await db.video.update({
-        where: { id: video.id },
-        data: { status: "failed" },
-      });
+    } catch (dbError) {
+      // If DB operations fail, mark video as failed
+      try {
+        await db.video.update({
+          where: { id: video.id },
+          data: { status: "failed" },
+        });
+      } catch {}
 
-      console.error("AI processing error:", aiError);
+      console.error("Database error creating clips:", dbError);
       return NextResponse.json(
-        { error: "Failed to process video with AI. Please try again." },
+        { error: "Failed to save clips. Please try again." },
         { status: 500 }
       );
     }
@@ -164,7 +169,7 @@ export async function POST(request: Request) {
   }
 }
 
-// Fallback clip generator when LLM response parsing fails
+// Fallback clip generator - used when AI is unavailable
 function generateFallbackClips() {
   const titles = [
     "The Key Insight That Changes Everything",

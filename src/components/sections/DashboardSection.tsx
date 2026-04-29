@@ -240,6 +240,7 @@ export function DashboardSection() {
       const res = await fetch("/api/process", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ url: processUrl.trim(), userId: user.id }),
       });
       const data = await res.json();

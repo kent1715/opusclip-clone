@@ -117,15 +117,23 @@ async function seed() {
         name: 'Demo User',
         password: hashPassword(demoPassword),
         role: 'user',
-        plan: 'free',
+        plan: 'pro',
         clipsUsed: 0,
-        clipsLimit: 5,
+        clipsLimit: 50,
         image: null,
       },
     });
     console.log(`  ✅ Created demo user: ${demoEmail} / ${demoPassword}`);
   } else {
-    console.log(`  ⏭️  Demo user already exists: ${demoEmail}`);
+    // Update existing demo to have more clips
+    await db.user.update({
+      where: { id: existingDemo.id },
+      data: {
+        plan: 'pro',
+        clipsLimit: 50,
+      },
+    });
+    console.log(`  ⏭️  Demo user already exists: ${demoEmail} (updated to pro plan)`);
   }
 
   // ─── Create Default Templates ──────────────────────────────────────────

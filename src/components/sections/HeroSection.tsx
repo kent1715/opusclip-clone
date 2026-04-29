@@ -50,6 +50,7 @@ export function HeroSection() {
       const res = await fetch("/api/process", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ url: url.trim(), userId: user.id }),
       });
 
