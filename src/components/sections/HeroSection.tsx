@@ -21,9 +21,9 @@ interface Clip {
   viralityScore: number;
   duration: string;
   startTime: string;
-  captions: boolean;
-  format: string;
-  tags: string[];
+  captions: string | null;
+  layout: string;
+  tags: string | string[];  // API returns JSON string, frontend may parse it
 }
 
 export function HeroSection() {
@@ -60,7 +60,13 @@ export function HeroSection() {
         throw new Error(data.error || "Failed to process video");
       }
 
-      setClips(data.data.clips);
+      // Normalize clips from API response (tags may be JSON string)
+      const rawClips = data.data.clips || [];
+      const normalizedClips = rawClips.map((clip: Record<string, unknown>) => ({
+        ...clip,
+        tags: typeof clip.tags === 'string' ? (() => { try { return JSON.parse(clip.tags as string); } catch { return []; } })() : (Array.isArray(clip.tags) ? clip.tags : []),
+      }));
+      setClips(normalizedClips);
       // If video was created, navigate to editor
       if (data.data.id) {
         setActiveVideoId(data.data.id);
@@ -370,7 +376,7 @@ export function HeroSection() {
                               </span>
                             </div>
                             <div className="flex gap-1 mt-2">
-                              {clip.tags.map((tag) => (
+                              {Array.isArray(clip.tags) && clip.tags.map((tag) => (
                                 <span
                                   key={tag}
                                   className="text-[10px] px-1.5 py-0.5 rounded bg-white/5 text-white/30"

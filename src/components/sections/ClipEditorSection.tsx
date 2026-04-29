@@ -603,7 +603,10 @@ export function ClipEditorSection() {
   const fetchClips = useCallback(async () => {
     if (!activeVideoId) return;
     try {
-      const res = await fetch(`/api/clips?videoId=${activeVideoId}`);
+      const userId = user?.id || "";
+      const res = await fetch(`/api/clips?videoId=${activeVideoId}${userId ? `&userId=${userId}` : ""}`, {
+        credentials: "include",
+      });
       if (res.ok) {
         const json = await res.json();
         setClips(Array.isArray(json.data) ? json.data : []);
@@ -614,7 +617,7 @@ export function ClipEditorSection() {
       console.error("Failed to fetch clips:", err);
       setClips([]);
     }
-  }, [activeVideoId]);
+  }, [activeVideoId, user?.id]);
 
   const fetchTemplates = useCallback(async () => {
     try {

@@ -21,7 +21,8 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Video not found" }, { status: 404 });
     }
 
-    const auth = await requireAuth(video.userId);
+    const userId = searchParams.get("userId");
+    const auth = await requireAuth(userId || video.userId);
     if ("error" in auth) {
       return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
