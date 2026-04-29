@@ -1,0 +1,28 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "The website appears **professional** with a clean, modern design and clear branding (OpusClip logo, consistent color scheme). Visual elements (icons, text hierarchy, layout) are well-organized, and the dark theme with vibrant accent colors (purple, pink, green) creates visual appeal. No major visual issues are evident—layout is structured, text is readable, and UI elements (buttons, navigation) are intuitive.  \n\n**Overall quality rating: 8/10** (minor potential for more dynamic imagery or subtle animation, but strong on functionality and professionalism).",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1777436106,
+  "id": "202604291215037f74cc87371e4e19",
+  "model": "glm-4.6v",
+  "object": "chat.completion",
+  "request_id": "202604291215037f74cc87371e4e19",
+  "usage": {
+    "completion_tokens": 117,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "prompt_tokens": 999,
+    "prompt_tokens_details": {
+      "cached_tokens": 4
+    },
+    "total_tokens": 1116
+  }
+}

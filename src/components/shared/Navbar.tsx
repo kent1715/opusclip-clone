@@ -1,0 +1,132 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { Menu, Play, ChevronDown } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+
+const navLinks = [
+  { label: "Products", href: "#features", hasDropdown: true },
+  { label: "How It Works", href: "#how-it-works" },
+  { label: "Pricing", href: "#pricing" },
+  { label: "Testimonials", href: "#testimonials" },
+  { label: "FAQ", href: "#faq" },
+];
+
+export function Navbar() {
+  const [scrolled, setScrolled] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => setScrolled(window.scrollY > 20);
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const handleLinkClick = (href: string) => {
+    setMobileOpen(false);
+    const el = document.querySelector(href);
+    if (el) el.scrollIntoView({ behavior: "smooth" });
+  };
+
+  return (
+    <motion.header
+      initial={{ y: -100 }}
+      animate={{ y: 0 }}
+      transition={{ duration: 0.5, ease: "easeOut" }}
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+        scrolled
+          ? "bg-background/80 backdrop-blur-xl border-b border-white/5 shadow-lg shadow-black/20"
+          : "bg-transparent"
+      }`}
+    >
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16 md:h-20">
+          {/* Logo */}
+          <div className="flex items-center gap-2">
+            <div className="relative w-9 h-9 rounded-xl bg-gradient-to-br from-pink-500 via-purple-500 to-cyan-400 flex items-center justify-center">
+              <Play className="w-4 h-4 text-white fill-white ml-0.5" />
+            </div>
+            <span className="text-xl font-bold text-white tracking-tight">
+              Opus<span className="gradient-text">Clip</span>
+            </span>
+          </div>
+
+          {/* Desktop Nav */}
+          <nav className="hidden md:flex items-center gap-1">
+            {navLinks.map((link) => (
+              <button
+                key={link.label}
+                onClick={() => handleLinkClick(link.href)}
+                className="relative px-4 py-2 text-sm text-white/70 hover:text-white transition-colors rounded-lg hover:bg-white/5 group flex items-center gap-1"
+              >
+                {link.label}
+                {link.hasDropdown && (
+                  <ChevronDown className="w-3 h-3 transition-transform group-hover:rotate-180" />
+                )}
+              </button>
+            ))}
+          </nav>
+
+          {/* Desktop CTA */}
+          <div className="hidden md:flex items-center gap-3">
+            <Button
+              variant="ghost"
+              className="text-white/70 hover:text-white hover:bg-white/5"
+            >
+              Sign In
+            </Button>
+            <Button className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white border-0 shadow-lg shadow-pink-500/25 hover:shadow-pink-500/40 transition-all duration-300 px-6">
+              Get Started Free
+            </Button>
+          </div>
+
+          {/* Mobile Menu */}
+          <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+            <SheetTrigger asChild className="md:hidden">
+              <Button variant="ghost" size="icon" className="text-white">
+                <Menu className="w-6 h-6" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent
+              side="right"
+              className="bg-[#0a0a0f] border-white/10 w-80"
+            >
+              <SheetTitle className="text-white text-lg font-bold mb-6">
+                OpusClip
+              </SheetTitle>
+              <div className="flex flex-col gap-2 mt-4">
+                {navLinks.map((link) => (
+                  <button
+                    key={link.label}
+                    onClick={() => handleLinkClick(link.href)}
+                    className="text-left px-4 py-3 text-white/70 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+                  >
+                    {link.label}
+                  </button>
+                ))}
+                <div className="border-t border-white/10 mt-4 pt-4 space-y-3">
+                  <Button
+                    variant="ghost"
+                    className="w-full text-white/70 hover:text-white hover:bg-white/5 justify-start"
+                  >
+                    Sign In
+                  </Button>
+                  <Button className="w-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white border-0">
+                    Get Started Free
+                  </Button>
+                </div>
+              </div>
+            </SheetContent>
+          </Sheet>
+        </div>
+      </div>
+    </motion.header>
+  );
+}
