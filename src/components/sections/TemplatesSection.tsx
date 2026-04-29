@@ -545,6 +545,7 @@ export function TemplatesSection() {
                 captionStyle: template.captionStyle,
                 layout: template.layout,
                 templateId: template.id,
+                userId: user?.id,
               }),
             })
           )

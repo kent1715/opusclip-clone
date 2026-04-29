@@ -61,8 +61,8 @@ export function HeroSection() {
 
       setClips(data.data.clips);
       // If video was created, navigate to editor
-      if (data.data.videoId) {
-        setActiveVideoId(data.data.videoId);
+      if (data.data.id) {
+        setActiveVideoId(data.data.id);
         setTimeout(() => setCurrentView("editor"), 1500);
       }
     } catch (err) {

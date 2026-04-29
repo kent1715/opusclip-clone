@@ -267,7 +267,7 @@ export function DashboardSection() {
     async (videoId: string) => {
       setDeleting(true);
       try {
-        const res = await fetch(`/api/videos/${videoId}`, { method: "DELETE" });
+        const res = await fetch(`/api/videos/${videoId}${user?.id ? `?userId=${user.id}` : ''}`, { method: "DELETE" });
         if (res.ok) {
           setVideos((prev) => prev.filter((v) => v.id !== videoId));
         }
@@ -290,6 +290,7 @@ export function DashboardSection() {
         body: JSON.stringify({
           isPublished: newPublished,
           publishedTo: newPublished ? JSON.stringify(["social"]) : "[]",
+          userId: user?.id,
         }),
       });
       // Update local state

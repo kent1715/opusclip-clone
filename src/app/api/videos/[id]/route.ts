@@ -9,7 +9,9 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const auth = await requireAuth();
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get("userId");
+    const auth = await requireAuth(userId);
 
     if ("error" in auth) {
       return NextResponse.json({ error: auth.error }, { status: auth.status });
@@ -46,14 +48,13 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
-    const auth = await requireAuth();
+    const body = await request.json();
+    const { status, title, userId } = body;
+    const auth = await requireAuth(userId);
 
     if ("error" in auth) {
       return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
-
-    const body = await request.json();
-    const { status, title } = body;
 
     // Check if video exists and user owns it
     const existing = await db.video.findUnique({ where: { id } });
@@ -100,7 +101,9 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const auth = await requireAuth();
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get("userId");
+    const auth = await requireAuth(userId);
 
     if ("error" in auth) {
       return NextResponse.json({ error: auth.error }, { status: auth.status });

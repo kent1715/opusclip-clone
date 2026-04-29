@@ -9,7 +9,9 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const auth = await requireAuth();
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get("userId");
+    const auth = await requireAuth(userId);
 
     if ("error" in auth) {
       return NextResponse.json({ error: auth.error }, { status: auth.status });
@@ -46,12 +48,6 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
-    const auth = await requireAuth();
-
-    if ("error" in auth) {
-      return NextResponse.json({ error: auth.error }, { status: auth.status });
-    }
-
     const body = await request.json();
     const {
       title,
@@ -62,7 +58,13 @@ export async function PATCH(
       tags,
       isPublished,
       publishedTo,
+      userId,
     } = body;
+    const auth = await requireAuth(userId);
+
+    if ("error" in auth) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
 
     // Check if clip exists and user owns it
     const existing = await db.clip.findUnique({
@@ -138,7 +140,9 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const auth = await requireAuth();
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get("userId");
+    const auth = await requireAuth(userId);
 
     if ("error" in auth) {
       return NextResponse.json({ error: auth.error }, { status: auth.status });

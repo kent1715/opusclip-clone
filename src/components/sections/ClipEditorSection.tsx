@@ -252,7 +252,7 @@ export function ClipEditorSection() {
   const fetchVideo = useCallback(async () => {
     if (!activeVideoId) return;
     try {
-      const res = await fetch(`/api/videos/${activeVideoId}`);
+      const res = await fetch(`/api/videos/${activeVideoId}${user?.id ? `?userId=${user.id}` : ''}`);
       if (res.ok) {
         const json = await res.json();
         setVideo(json.data);
@@ -385,6 +385,7 @@ export function ClipEditorSection() {
           tags: editTags,
           templateId: editTemplateId || null,
           isPublished: editIsPublished,
+          userId: user?.id,
         }),
       });
       if (res.ok) {
@@ -401,7 +402,7 @@ export function ClipEditorSection() {
     if (!activeClipId) return;
     setIsDeleting(true);
     try {
-      const res = await fetch(`/api/clips/${activeClipId}`, {
+      const res = await fetch(`/api/clips/${activeClipId}${user?.id ? `?userId=${user.id}` : ''}`, {
         method: "DELETE",
       });
       if (res.ok) {
@@ -422,7 +423,7 @@ export function ClipEditorSection() {
       await fetch(`/api/clips/${activeClipId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isPublished: published }),
+        body: JSON.stringify({ isPublished: published, userId: user?.id }),
       });
       await fetchClips();
     } catch (err) {

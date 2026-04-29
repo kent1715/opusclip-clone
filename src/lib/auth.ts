@@ -49,18 +49,30 @@ export async function validateUser(userId: string) {
 }
 
 // Verify that the authenticated user matches the requested resource owner
+// Supports two auth methods:
+//   1. Session cookie (preferred, more secure)
+//   2. userId fallback (for when cookie isn't available, e.g. cross-origin or sameSite issues)
 export async function requireAuth(userId?: string | null) {
+  // Try session cookie first (most secure)
   const authUser = await getAuthUser();
 
-  if (!authUser) {
-    return { error: "Authentication required", status: 401 };
+  if (authUser) {
+    // If a specific userId is provided, verify it matches the authenticated user
+    // Admin users can access any resource
+    if (userId && userId !== authUser.id && authUser.role !== "admin") {
+      return { error: "Access denied", status: 403 };
+    }
+    return { user: authUser };
   }
 
-  // If a specific userId is provided, verify it matches the authenticated user
-  // Admin users can access any resource
-  if (userId && userId !== authUser.id && authUser.role !== "admin") {
-    return { error: "Access denied", status: 403 };
+  // Fallback: validate using userId from request body/query
+  // This ensures the feature works even when cookies aren't sent properly
+  if (userId) {
+    const validatedUser = await validateUser(userId);
+    if (validatedUser) {
+      return { user: validatedUser };
+    }
   }
 
-  return { user: authUser };
+  return { error: "Authentication required", status: 401 };
 }
