@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { requireAuth } from '@/lib/auth'
 
 export async function PATCH(request: Request) {
   try {
@@ -11,6 +12,12 @@ export async function PATCH(request: Request) {
         { error: 'User ID is required' },
         { status: 400 }
       )
+    }
+
+    // Verify auth and ownership
+    const auth = await requireAuth(userId)
+    if ('error' in auth) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status })
     }
 
     // Verify user exists
@@ -45,8 +52,8 @@ export async function PATCH(request: Request) {
       // Update clips limit based on plan
       const planLimits: Record<string, number> = {
         free: 5,
-        pro: 50,
-        business: 200,
+        pro: 200,
+        business: 999,
       }
       updateData.clipsLimit = planLimits[plan] ?? 5
     }

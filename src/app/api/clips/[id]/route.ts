@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { requireAuth } from "@/lib/auth";
 
 // GET: Get single clip with video info
 export async function GET(
@@ -8,6 +9,11 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    const auth = await requireAuth();
+
+    if ("error" in auth) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
 
     const clip = await db.clip.findUnique({
       where: { id },
@@ -16,6 +22,11 @@ export async function GET(
 
     if (!clip) {
       return NextResponse.json({ error: "Clip not found" }, { status: 404 });
+    }
+
+    // Verify ownership (admin can access any)
+    if (clip.video.userId !== auth.user.id && auth.user.role !== "admin") {
+      return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
     return NextResponse.json({ success: true, data: clip });
@@ -35,6 +46,12 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
+    const auth = await requireAuth();
+
+    if ("error" in auth) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
     const body = await request.json();
     const {
       title,
@@ -47,10 +64,17 @@ export async function PATCH(
       publishedTo,
     } = body;
 
-    // Check if clip exists
-    const existing = await db.clip.findUnique({ where: { id } });
+    // Check if clip exists and user owns it
+    const existing = await db.clip.findUnique({
+      where: { id },
+      include: { video: true },
+    });
     if (!existing) {
       return NextResponse.json({ error: "Clip not found" }, { status: 404 });
+    }
+
+    if (existing.video.userId !== auth.user.id && auth.user.role !== "admin") {
+      return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
     // Validate captionStyle if provided
@@ -114,11 +138,23 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
+    const auth = await requireAuth();
 
-    // Check if clip exists
-    const existing = await db.clip.findUnique({ where: { id } });
+    if ("error" in auth) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
+    // Check if clip exists and user owns it
+    const existing = await db.clip.findUnique({
+      where: { id },
+      include: { video: true },
+    });
     if (!existing) {
       return NextResponse.json({ error: "Clip not found" }, { status: 404 });
+    }
+
+    if (existing.video.userId !== auth.user.id && auth.user.role !== "admin") {
+      return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
     await db.clip.delete({ where: { id } });

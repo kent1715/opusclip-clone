@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import crypto from 'crypto'
+import { SESSION_COOKIE } from '@/lib/auth'
 
 export async function POST(request: Request) {
   try {
@@ -43,13 +44,25 @@ export async function POST(request: Request) {
     // Return user object without password
     const { password: _, ...userWithoutPassword } = user
 
-    return NextResponse.json(
+    // Create response with user data
+    const response = NextResponse.json(
       {
         user: userWithoutPassword,
         message: 'Login successful',
       },
       { status: 200 }
     )
+
+    // Set session cookie (httpOnly for security, 30 day expiry)
+    response.cookies.set(SESSION_COOKIE, user.id, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 30, // 30 days
+      path: '/',
+    })
+
+    return response
   } catch (error) {
     console.error('Login error:', error)
     return NextResponse.json(

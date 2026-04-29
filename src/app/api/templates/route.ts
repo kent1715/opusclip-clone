@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { requireAuth } from "@/lib/auth";
 
 // GET: List templates (user + default templates)
 export async function GET(request: Request) {
@@ -47,14 +48,11 @@ export async function POST(request: Request) {
       );
     }
 
-    // Verify user exists if userId is provided
+    // Verify auth if userId is provided
     if (userId) {
-      const user = await db.user.findUnique({ where: { id: userId } });
-      if (!user) {
-        return NextResponse.json(
-          { error: "User not found" },
-          { status: 404 }
-        );
+      const auth = await requireAuth(userId);
+      if ("error" in auth) {
+        return NextResponse.json({ error: auth.error }, { status: auth.status });
       }
     }
 

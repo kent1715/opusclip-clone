@@ -1,31 +1,41 @@
+"use client";
+
 import { Play } from "lucide-react";
+import { useAppStore } from "@/lib/store";
 
 const footerLinks = {
   Product: [
-    "AI Clip Maker",
-    "Video Editor",
-    "Auto Captions",
-    "Brand Templates",
-    "B-Roll",
-    "Virality Score",
+    { label: "AI Clip Maker", href: "#features" },
+    { label: "Video Editor", href: "#features" },
+    { label: "Auto Captions", href: "#features" },
+    { label: "Brand Templates", href: "#features" },
+    { label: "B-Roll", href: "#features" },
+    { label: "Virality Score", href: "#features" },
   ],
   Tools: [
-    "YouTube to Shorts",
-    "Podcast to Clips",
-    "Webinar to Clips",
-    "TikTok Editor",
-    "Instagram Reels",
-    "LinkedIn Clips",
+    { label: "YouTube to Shorts", href: "#hero" },
+    { label: "Podcast to Clips", href: "#hero" },
+    { label: "Webinar to Clips", href: "#hero" },
+    { label: "TikTok Editor", href: "#hero" },
+    { label: "Instagram Reels", href: "#hero" },
+    { label: "LinkedIn Clips", href: "#hero" },
   ],
   Resources: [
-    "Blog",
-    "Help Center",
-    "Tutorials",
-    "API Docs",
-    "Community",
-    "Changelog",
+    { label: "Blog", href: "#" },
+    { label: "Help Center", href: "#" },
+    { label: "Tutorials", href: "#how-it-works" },
+    { label: "API Docs", href: "#" },
+    { label: "Community", href: "#" },
+    { label: "Changelog", href: "#" },
   ],
-  Company: ["About Us", "Careers", "Press", "Contact", "Privacy", "Terms"],
+  Company: [
+    { label: "About Us", href: "#" },
+    { label: "Careers", href: "#" },
+    { label: "Press", href: "#" },
+    { label: "Contact", href: "#" },
+    { label: "Privacy", href: "#" },
+    { label: "Terms", href: "#" },
+  ],
 };
 
 const socialIcons = [
@@ -64,6 +74,25 @@ const socialIcons = [
 ];
 
 export function Footer() {
+  const { setAuthModalTab, setCurrentView, user } = useAppStore();
+
+  const handleLinkClick = (href: string) => {
+    if (href.startsWith("#") && href !== "#") {
+      const el = document.querySelector(href);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth" });
+      }
+    }
+  };
+
+  const handleGetStarted = () => {
+    if (user) {
+      setCurrentView("dashboard");
+    } else {
+      setAuthModalTab("signup");
+    }
+  };
+
   return (
     <footer className="relative border-t border-white/5 bg-[#06060a]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
@@ -84,14 +113,14 @@ export function Footer() {
             </p>
             <div className="flex gap-3">
               {socialIcons.map((social) => (
-                <a
+                <button
                   key={social.name}
-                  href="#"
+                  onClick={handleGetStarted}
                   className="w-9 h-9 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/40 hover:text-white transition-all duration-200"
                   aria-label={social.name}
                 >
                   {social.svg}
-                </a>
+                </button>
               ))}
             </div>
           </div>
@@ -104,13 +133,13 @@ export function Footer() {
               </h4>
               <ul className="space-y-2.5">
                 {links.map((link) => (
-                  <li key={link}>
-                    <a
-                      href="#"
+                  <li key={link.label}>
+                    <button
+                      onClick={() => handleLinkClick(link.href)}
                       className="text-sm text-white/40 hover:text-white/80 transition-colors"
                     >
-                      {link}
-                    </a>
+                      {link.label}
+                    </button>
                   </li>
                 ))}
               </ul>
@@ -124,24 +153,24 @@ export function Footer() {
             &copy; {new Date().getFullYear()} OpusClip. All rights reserved.
           </p>
           <div className="flex gap-6">
-            <a
-              href="#"
+            <button
+              onClick={() => handleLinkClick("#")}
               className="text-sm text-white/30 hover:text-white/60 transition-colors"
             >
               Privacy Policy
-            </a>
-            <a
-              href="#"
+            </button>
+            <button
+              onClick={() => handleLinkClick("#")}
               className="text-sm text-white/30 hover:text-white/60 transition-colors"
             >
               Terms of Service
-            </a>
-            <a
-              href="#"
+            </button>
+            <button
+              onClick={() => handleLinkClick("#")}
               className="text-sm text-white/30 hover:text-white/60 transition-colors"
             >
               Cookie Policy
-            </a>
+            </button>
           </div>
         </div>
       </div>

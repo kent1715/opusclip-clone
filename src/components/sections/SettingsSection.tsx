@@ -70,14 +70,14 @@ const PLANS = [
     color: "text-purple-400",
     gradient: "from-purple-500/20 to-pink-500/20",
     features: [
-      "50 clips per month",
+      "200 clips per month",
       "1080p export quality",
       "All caption styles",
       "All layout options",
       "Brand templates",
       "Priority support",
     ],
-    clipsLimit: 50,
+    clipsLimit: 200,
     popular: true,
   },
   {
@@ -90,7 +90,7 @@ const PLANS = [
     color: "text-yellow-400",
     gradient: "from-yellow-500/20 to-orange-500/20",
     features: [
-      "200 clips per month",
+      "Unlimited clips",
       "4K export quality",
       "All caption styles",
       "All layout options",
@@ -99,7 +99,7 @@ const PLANS = [
       "Dedicated support",
       "Team collaboration",
     ],
-    clipsLimit: 200,
+    clipsLimit: 999,
   },
 ];
 

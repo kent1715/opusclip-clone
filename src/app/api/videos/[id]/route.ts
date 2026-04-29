@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { requireAuth } from "@/lib/auth";
 
 // GET: Get single video with its clips
 export async function GET(
@@ -8,6 +9,11 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    const auth = await requireAuth();
+
+    if ("error" in auth) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
 
     const video = await db.video.findUnique({
       where: { id },
@@ -16,6 +22,11 @@ export async function GET(
 
     if (!video) {
       return NextResponse.json({ error: "Video not found" }, { status: 404 });
+    }
+
+    // Verify ownership (admin can access any)
+    if (video.userId !== auth.user.id && auth.user.role !== "admin") {
+      return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
     return NextResponse.json({ success: true, data: video });
@@ -35,13 +46,23 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
+    const auth = await requireAuth();
+
+    if ("error" in auth) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
     const body = await request.json();
     const { status, title } = body;
 
-    // Check if video exists
+    // Check if video exists and user owns it
     const existing = await db.video.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json({ error: "Video not found" }, { status: 404 });
+    }
+
+    if (existing.userId !== auth.user.id && auth.user.role !== "admin") {
+      return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
     // Validate status if provided
@@ -79,11 +100,20 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
+    const auth = await requireAuth();
 
-    // Check if video exists
+    if ("error" in auth) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
+    // Check if video exists and user owns it
     const existing = await db.video.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json({ error: "Video not found" }, { status: 404 });
+    }
+
+    if (existing.userId !== auth.user.id && auth.user.role !== "admin") {
+      return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
     // Delete video (clips will be cascade deleted)

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { requireAuth, SESSION_COOKIE } from '@/lib/auth'
 
 export async function DELETE(request: Request) {
   try {
@@ -13,16 +14,10 @@ export async function DELETE(request: Request) {
       )
     }
 
-    // Verify user exists
-    const existingUser = await db.user.findUnique({
-      where: { id: userId },
-    })
-
-    if (!existingUser) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      )
+    // Verify auth and ownership
+    const auth = await requireAuth(userId)
+    if ('error' in auth) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status })
     }
 
     // Delete user - cascade will handle videos, clips, templates
@@ -30,10 +25,20 @@ export async function DELETE(request: Request) {
       where: { id: userId },
     })
 
-    return NextResponse.json(
+    // Clear session cookie
+    const response = NextResponse.json(
       { message: 'Account deleted successfully' },
       { status: 200 }
     )
+    response.cookies.set(SESSION_COOKIE, '', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 0,
+      path: '/',
+    })
+
+    return response
   } catch (error) {
     console.error('Delete account error:', error)
     return NextResponse.json(

@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-export type AppView = "landing" | "dashboard" | "process" | "editor" | "templates" | "settings";
+export type AppView = "landing" | "dashboard" | "editor" | "templates" | "settings";
 
 interface AppState {
   // Navigation

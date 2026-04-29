@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { requireAuth } from "@/lib/auth";
 import ZAI from "z-ai-web-dev-sdk";
 
 // AI-powered video processing endpoint
@@ -20,6 +21,12 @@ export async function POST(request: Request) {
         { error: "userId is required" },
         { status: 400 }
       );
+    }
+
+    // Verify auth and ownership
+    const auth = await requireAuth(userId);
+    if ("error" in auth) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
 
     // Verify user exists

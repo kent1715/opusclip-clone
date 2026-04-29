@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { requireAuth } from "@/lib/auth";
 
 // POST: Create a new video record
 export async function POST(request: Request) {
@@ -14,17 +15,17 @@ export async function POST(request: Request) {
       );
     }
 
+    // Verify auth
+    const auth = await requireAuth(userId);
+    if ("error" in auth) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+
     if (!sourceUrl || typeof sourceUrl !== "string") {
       return NextResponse.json(
         { error: "sourceUrl is required" },
         { status: 400 }
       );
-    }
-
-    // Verify user exists
-    const user = await db.user.findUnique({ where: { id: userId } });
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
     const video = await db.video.create({
@@ -57,6 +58,12 @@ export async function GET(request: Request) {
         { error: "userId query parameter is required" },
         { status: 400 }
       );
+    }
+
+    // Verify auth
+    const auth = await requireAuth(userId);
+    if ("error" in auth) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
 
     const videos = await db.video.findMany({

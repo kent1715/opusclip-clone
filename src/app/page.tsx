@@ -25,11 +25,23 @@ export default function Home() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
+        // Try session cookie first (via /api/auth/me with no params)
+        const res = await fetch("/api/auth/me");
+        if (res.ok) {
+          const data = await res.json();
+          if (data.user) {
+            setUser(data.user);
+            localStorage.setItem("opus_user_id", data.user.id);
+            return;
+          }
+        }
+
+        // Fallback: try localStorage userId
         const savedUserId = localStorage.getItem("opus_user_id");
         if (savedUserId) {
-          const res = await fetch(`/api/auth/me?userId=${savedUserId}`);
-          if (res.ok) {
-            const data = await res.json();
+          const fallbackRes = await fetch(`/api/auth/me?userId=${savedUserId}`);
+          if (fallbackRes.ok) {
+            const data = await fallbackRes.json();
             setUser(data.user);
           } else {
             localStorage.removeItem("opus_user_id");

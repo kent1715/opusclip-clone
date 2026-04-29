@@ -96,3 +96,45 @@ Stage Summary:
 - Admin has business plan with 999 clip limit
 - Sample data (3 videos + 12 clips) pre-populated for admin
 - Test credentials shown on landing page for easy access
+
+---
+Task ID: 7
+Agent: Main Agent
+Task: Fix login issue, add session cookies, protect API routes, polish UI
+
+Work Log:
+- Diagnosed login issue: dev server was not running when user tried to log in
+- Restarted dev server and verified login API works correctly (returns 200 with user data)
+- Fixed social login password mismatch: changed from `social_${Date.now()}` to deterministic `social_${provider.toLowerCase()}_login` so users can log back into social accounts
+- Fixed Pro plan clipsLimit inconsistency: changed from 50→200 for Pro, 200→999 for Business (matching landing page)
+- Removed dead "process" view from AppView type in store.ts
+- Removed ChevronDown from Features nav link in Navbar (no dropdown existed)
+- Removed test credentials hint from HeroSection (was only for testing)
+- Created /lib/auth.ts with session management utilities (getAuthUser, validateUser, requireAuth)
+- Updated login API to set httpOnly session cookie (opus_session) with 30-day expiry
+- Updated register API to set httpOnly session cookie on account creation
+- Created /api/auth/logout endpoint that clears session cookie
+- Updated /api/auth/me to check session cookie first, fall back to localStorage userId
+- Updated page.tsx to check session cookie for authentication on page load
+- Updated Navbar logout to call /api/auth/logout to clear session cookie
+- Added auth protection to all API routes using requireAuth:
+  - /api/videos (GET/POST) - verify user owns resources
+  - /api/videos/[id] (GET/PATCH/DELETE) - verify ownership, admin bypass
+  - /api/clips (GET/POST) - verify user owns parent video
+  - /api/clips/[id] (GET/PATCH/DELETE) - verify ownership via video relation, admin bypass
+  - /api/process (POST) - verify authenticated user
+  - /api/templates (POST) - verify auth for user-owned templates
+  - /api/templates/[id] (PATCH/DELETE) - verify ownership
+  - /api/auth/update (PATCH) - verify auth and ownership
+  - /api/auth/delete (DELETE) - verify auth and ownership, clear cookie
+- Updated Footer: changed from href="#" links to functional scroll-to links and proper buttons
+- All lint checks pass
+
+Stage Summary:
+- Login now works with httpOnly session cookies for security
+- All API routes are auth-protected with ownership validation
+- Admin users can access any resource (bypass ownership checks)
+- Social login uses deterministic passwords for consistent re-login
+- Pro plan correctly shows 200 clips, Business shows 999 (unlimited)
+- Footer links now navigate to page sections properly
+- Code quality verified with passing lint

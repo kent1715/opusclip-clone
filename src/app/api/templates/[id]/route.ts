@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { requireAuth } from "@/lib/auth";
 
 // PATCH: Update template
 export async function PATCH(
@@ -27,6 +28,14 @@ export async function PATCH(
         { error: "Template not found" },
         { status: 404 }
       );
+    }
+
+    // Verify auth for user-owned templates
+    if (existing.userId) {
+      const auth = await requireAuth(existing.userId);
+      if ("error" in auth) {
+        return NextResponse.json({ error: auth.error }, { status: auth.status });
+      }
     }
 
     // Validate captionStyle if provided
@@ -94,6 +103,14 @@ export async function DELETE(
         { error: "Template not found" },
         { status: 404 }
       );
+    }
+
+    // Verify auth for user-owned templates
+    if (existing.userId) {
+      const auth = await requireAuth(existing.userId);
+      if ("error" in auth) {
+        return NextResponse.json({ error: auth.error }, { status: auth.status });
+      }
     }
 
     await db.template.delete({ where: { id } });

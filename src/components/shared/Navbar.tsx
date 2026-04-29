@@ -11,7 +11,6 @@ import {
 import {
   Menu,
   Play,
-  ChevronDown,
   LayoutDashboard,
   LogOut,
   Settings,
@@ -72,7 +71,12 @@ export function Navbar() {
     if (el) el.scrollIntoView({ behavior: "smooth" });
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch {
+      // Continue even if API call fails
+    }
     localStorage.removeItem("opus_user_id");
     setUser(null);
     setCurrentView("landing");
@@ -131,9 +135,6 @@ export function Navbar() {
                   className="relative px-4 py-2 text-sm text-white/70 hover:text-white transition-colors rounded-lg hover:bg-white/5 group flex items-center gap-1"
                 >
                   {link.label}
-                  {link.label === "Features" && (
-                    <ChevronDown className="w-3 h-3 transition-transform group-hover:rotate-180" />
-                  )}
                 </button>
               ))}
             </nav>

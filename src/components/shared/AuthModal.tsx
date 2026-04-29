@@ -217,35 +217,39 @@ export function AuthModal() {
     setSocialLoading(provider);
     try {
       // Create an account with social provider email format
-      const email = `${provider.toLowerCase()}_user_${Date.now()}@opusclip.app`;
+      const email = `${provider.toLowerCase()}_user@opusclip.app`;
       const name = `${provider} User`;
+      const socialPassword = `social_${provider.toLowerCase()}_login`;
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email,
           name,
-          password: `social_${Date.now()}`,
+          password: socialPassword,
         }),
       });
       const data = await res.json();
+      let loggedInUser = null;
       if (!res.ok) {
         // If user already exists, try logging in
         const loginRes = await fetch("/api/auth/login", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password: `social_${Date.now()}` }),
+          body: JSON.stringify({ email, password: socialPassword }),
         });
         if (!loginRes.ok) {
           setSignInError(`Failed to sign in with ${provider}. Please try again.`);
           return;
         }
         const loginData = await loginRes.json();
-        setUser(loginData.user);
+        loggedInUser = loginData.user;
+        setUser(loggedInUser);
       } else {
-        setUser(data.user);
+        loggedInUser = data.user;
+        setUser(loggedInUser);
       }
-      localStorage.setItem("opus_user_id", data.user?.id || "");
+      localStorage.setItem("opus_user_id", loggedInUser?.id || "");
       setShowAuthModal(false);
       setCurrentView("dashboard");
       resetForm();

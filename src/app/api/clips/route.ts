@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { requireAuth } from "@/lib/auth";
 
 // GET: List clips for a video
 export async function GET(request: Request) {
@@ -12,6 +13,17 @@ export async function GET(request: Request) {
         { error: "videoId query parameter is required" },
         { status: 400 }
       );
+    }
+
+    // Verify the user owns this video
+    const video = await db.video.findUnique({ where: { id: videoId } });
+    if (!video) {
+      return NextResponse.json({ error: "Video not found" }, { status: 404 });
+    }
+
+    const auth = await requireAuth(video.userId);
+    if ("error" in auth) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
 
     const clips = await db.clip.findMany({
@@ -59,10 +71,15 @@ export async function POST(request: Request) {
       );
     }
 
-    // Verify video exists
+    // Verify video exists and user owns it
     const video = await db.video.findUnique({ where: { id: videoId } });
     if (!video) {
       return NextResponse.json({ error: "Video not found" }, { status: 404 });
+    }
+
+    const auth = await requireAuth(video.userId);
+    if ("error" in auth) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
 
     const clip = await db.clip.create({
