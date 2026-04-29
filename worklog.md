@@ -104,3 +104,26 @@ Stage Summary:
 - Slide-in detail panel for editing individual clips
 - More realistic fallback clips with varied titles and descriptive tags
 - Deployed and running on EC2
+
+---
+Task ID: 10
+Agent: Main Agent
+Task: Fix "Application error: a client-side exception has occurred" on EC2
+
+Work Log:
+- Investigated EC2 deployment and found the standalone build was stale (old BUILD_ID from before the redesign)
+- The `.next/standalone/server.js` was still running old code even after `git pull` updated source files
+- Root cause: `git pull` only updates source files, but the production build in `.next/` directory needs to be rebuilt
+- Also found "Failed to find Server Action" errors in PM2 logs - caused by browser caching old build's JS
+- Added `src/app/error.tsx` - Next.js error boundary that catches client-side exceptions and shows "Try Again" / "Go Home" buttons instead of the generic error page
+- Fixed defensive data fetching in ClipEditorSection: added Array.isArray checks, null safety for API responses, try-catch wrappers
+- Fixed DashboardSection: added Array.isArray check and setVideos([]) on error
+- Rebuilt the app on EC2: `npm run build` + copied static files/db/env to `.next/standalone/`
+- Verified: EC2 returns HTTP 200, login API works, process API creates clips with new varied titles
+- DATABASE_URL in standalone `.env` set to `file:./db/custom.db` (correct relative path)
+
+Stage Summary:
+- Fixed the stale build issue by rebuilding on EC2
+- Added proper error boundary (error.tsx) for graceful error handling
+- Made all data fetching defensive with Array.isArray checks and error fallbacks
+- EC2 site fully functional at 18.221.5.26
