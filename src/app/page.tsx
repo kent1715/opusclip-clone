@@ -1,22 +1,58 @@
 "use client";
 
 import { useEffect } from "react";
+import dynamic from "next/dynamic";
 import { Navbar } from "@/components/shared/Navbar";
 import { Footer } from "@/components/shared/Footer";
 import { AuthModal } from "@/components/shared/AuthModal";
 import { HeroSection } from "@/components/sections/HeroSection";
-import { TrustedBySection } from "@/components/sections/TrustedBySection";
-import { FeaturesSection } from "@/components/sections/FeaturesSection";
-import { HowItWorksSection } from "@/components/sections/HowItWorksSection";
-import { PricingSection } from "@/components/sections/PricingSection";
-import { TestimonialsSection } from "@/components/sections/TestimonialsSection";
-import { FAQSection } from "@/components/sections/FAQSection";
-import { CTASection } from "@/components/sections/CTASection";
-import { DashboardSection } from "@/components/sections/DashboardSection";
-import { ClipEditorSection } from "@/components/sections/ClipEditorSection";
-import { TemplatesSection } from "@/components/sections/TemplatesSection";
-import { SettingsSection } from "@/components/sections/SettingsSection";
 import { useAppStore } from "@/lib/store";
+
+// Lazy load below-the-fold sections to reduce initial bundle size
+const TrustedBySection = dynamic(
+  () => import("@/components/sections/TrustedBySection").then((m) => ({ default: m.TrustedBySection })),
+  { ssr: false }
+);
+const FeaturesSection = dynamic(
+  () => import("@/components/sections/FeaturesSection").then((m) => ({ default: m.FeaturesSection })),
+  { ssr: false }
+);
+const HowItWorksSection = dynamic(
+  () => import("@/components/sections/HowItWorksSection").then((m) => ({ default: m.HowItWorksSection })),
+  { ssr: false }
+);
+const PricingSection = dynamic(
+  () => import("@/components/sections/PricingSection").then((m) => ({ default: m.PricingSection })),
+  { ssr: false }
+);
+const TestimonialsSection = dynamic(
+  () => import("@/components/sections/TestimonialsSection").then((m) => ({ default: m.TestimonialsSection })),
+  { ssr: false }
+);
+const FAQSection = dynamic(
+  () => import("@/components/sections/FAQSection").then((m) => ({ default: m.FAQSection })),
+  { ssr: false }
+);
+const CTASection = dynamic(
+  () => import("@/components/sections/CTASection").then((m) => ({ default: m.CTASection })),
+  { ssr: false }
+);
+const DashboardSection = dynamic(
+  () => import("@/components/sections/DashboardSection").then((m) => ({ default: m.DashboardSection })),
+  { ssr: false }
+);
+const ClipEditorSection = dynamic(
+  () => import("@/components/sections/ClipEditorSection").then((m) => ({ default: m.ClipEditorSection })),
+  { ssr: false }
+);
+const TemplatesSection = dynamic(
+  () => import("@/components/sections/TemplatesSection").then((m) => ({ default: m.TemplatesSection })),
+  { ssr: false }
+);
+const SettingsSection = dynamic(
+  () => import("@/components/sections/SettingsSection").then((m) => ({ default: m.SettingsSection })),
+  { ssr: false }
+);
 
 export default function Home() {
   const { user, currentView, setUser, setAuthLoading } = useAppStore();
