@@ -258,7 +258,7 @@ function getClipEmbedUrl(
 
   if (source.platform === "youtube") {
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
-    return `${source.embedUrl}?start=${startSeconds}&end=${endSeconds}&autoplay=1&enablejsapi=1&origin=${origin}&rel=0&modestbranding=1`;
+    return `${source.embedUrl}?start=${startSeconds}&end=${endSeconds}&autoplay=1&rel=0&modestbranding=1`;
   }
   if (source.platform === "vimeo") {
     const mins = Math.floor(startSeconds / 60);
@@ -313,90 +313,34 @@ function getClipGradient(clipId: string): string {
   return gradients[Math.abs(hash) % gradients.length];
 }
 
-// ─── Auto Caption Overlay Component ───────────────────────────────────────
+// ─── Caption Parsing & Auto-Generation ───────────────────────────────────
 
 function parseCaptions(captionsStr: string | null): string[] {
   if (!captionsStr) return [];
   return captionsStr.split("|").map((s) => s.trim()).filter(Boolean);
 }
 
-// ─── YouTube Player API Hook ──────────────────────────────────────────────
+function ensureCaptions(clip: ClipData): string[] {
+  const lines = parseCaptions(clip.captions);
+  if (lines.length > 0) return lines;
 
-const YT_STATE = {
-  UNSTARTED: -1,
-  ENDED: 0,
-  PLAYING: 1,
-  PAUSED: 2,
-  BUFFERING: 3,
-};
+  // Auto-generate from title
+  const title = clip.title || '';
+  const words = title.split(/\s+/).filter(Boolean);
+  if (words.length === 0) return ['Loading...'];
 
-function useYouTubePlayer(iframeRef: React.RefObject<HTMLIFrameElement | null>) {
-  const [currentTime, setCurrentTime] = useState(0);
-  const [playerState, setPlayerState] = useState(-1);
-  const playerRef = useRef<any>(null);
-  const rafRef = useRef<number>(0);
+  // Split title into 2-3 subtitle lines
+  const mid = Math.ceil(words.length / 2);
+  const line1 = words.slice(0, mid).join(' ');
+  const line2 = words.slice(mid).join(' ');
 
-  // Load YouTube IFrame API
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    // Check if API already loaded
-    if ((window as any).YT?.Player) {
-      return; // API already available
-    }
-
-    // Load API script
-    const tag = document.createElement('script');
-    tag.src = 'https://www.youtube.com/iframe_api';
-    const firstScriptTag = document.getElementsByTagName('script')[0];
-    firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
-  }, []);
-
-  // Create player when iframe is available
-  useEffect(() => {
-    if (!iframeRef.current) return;
-
-    // Wait for YT API to be ready
-    const tryCreatePlayer = () => {
-      const YT = (window as any).YT;
-      if (!YT?.Player) {
-        setTimeout(tryCreatePlayer, 200);
-        return;
-      }
-
-      playerRef.current = new YT.Player(iframeRef.current!, {
-        events: {
-          onStateChange: (event: any) => {
-            setPlayerState(event.data);
-          },
-          onReady: () => {
-            // Start time tracking
-            const tick = () => {
-              if (playerRef.current?.getCurrentTime) {
-                setCurrentTime(playerRef.current.getCurrentTime());
-              }
-              rafRef.current = requestAnimationFrame(tick);
-            };
-            rafRef.current = requestAnimationFrame(tick);
-          },
-        },
-      });
-    };
-
-    tryCreatePlayer();
-
-    return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-      if (playerRef.current?.destroy) {
-        try { playerRef.current.destroy(); } catch {}
-      }
-    };
-  }, [iframeRef]);
-
-  return { currentTime, playerState };
+  if (line2.length > 0) {
+    return [line1, line2];
+  }
+  return [line1];
 }
 
-// ─── Fallback Elapsed Time Hook ───────────────────────────────────────────
+// ─── Elapsed Time Hook ───────────────────────────────────────────────────
 
 function useElapsedTime(isActive: boolean, bufferMs: number = 800) {
   const [elapsed, setElapsed] = useState(0);
@@ -467,7 +411,176 @@ function generateSubtitleSegments(
   });
 }
 
-// ─── Synced Subtitle Overlay Component ────────────────────────────────────
+// ─── Subtitle Bar Component (PRIMARY display below video) ────────────────
+
+function SubtitleBar({
+  captions,
+  style,
+  font,
+  animation,
+  color,
+  size,
+  isActive,
+  clipElapsed,
+  clipDuration,
+}: {
+  captions: string[];
+  style: string;
+  font: string;
+  animation: string;
+  color: string;
+  size: number;
+  isActive: boolean;
+  clipElapsed: number;
+  clipDuration: number;
+}) {
+  // Get preset and font
+  const preset = CAPTION_PRESETS.find((p) => p.id === style) || CAPTION_PRESETS.find((p) => p.id === "default")!;
+  const fontOption = FONT_OPTIONS.find((f) => f.id === font) || FONT_OPTIONS[0];
+  const effectiveColor = color !== "#ffffff" ? color : preset.textColor;
+
+  // Generate subtitle segments
+  const segments = useMemo(
+    () => generateSubtitleSegments(captions, clipDuration),
+    [captions, clipDuration]
+  );
+
+  // Find current segment
+  const currentSegment = isActive ? segments.find(
+    seg => clipElapsed >= seg.startTime && clipElapsed < seg.endTime
+  ) : null;
+
+  // Calculate word progress
+  let highlightedWordIndex = -1;
+  if (currentSegment) {
+    const segmentElapsed = clipElapsed - currentSegment.startTime;
+    const segmentDuration = currentSegment.endTime - currentSegment.startTime;
+    const segmentProgress = Math.min(1, segmentElapsed / segmentDuration);
+    highlightedWordIndex = Math.min(
+      currentSegment.words.length - 1,
+      Math.floor(segmentProgress * currentSegment.words.length)
+    );
+  }
+
+  if (!isActive || segments.length === 0) return null;
+
+  // Render with karaoke word-by-word highlighting for ALL styles
+  const renderKaraokeText = () => {
+    if (!currentSegment) return null;
+    const displayWords = preset.uppercase
+      ? currentSegment.words.map((w) => w.toUpperCase())
+      : currentSegment.words;
+
+    return (
+      <span>
+        {displayWords.map((word, i) => {
+          const isCurrent = i === highlightedWordIndex;
+          const isPast = i < highlightedWordIndex;
+
+          return (
+            <span
+              key={i}
+              className="inline-block transition-all duration-150"
+              style={{
+                color: isCurrent
+                  ? effectiveColor
+                  : isPast
+                  ? `${effectiveColor}bb`
+                  : `${effectiveColor}55`,
+                fontWeight: isCurrent ? 900 : isPast ? 800 : 600,
+                textShadow: isCurrent
+                  ? `0 0 12px ${effectiveColor}66, 0 0 24px ${effectiveColor}33`
+                  : 'none',
+                transform: isCurrent ? 'scale(1.05)' : 'scale(1)',
+              }}
+            >
+              {word}{' '}
+            </span>
+          );
+        })}
+      </span>
+    );
+  };
+
+  // Animation for segment transitions
+  const getAnimProps = () => {
+    switch (animation) {
+      case "bounce":
+        return { initial: { opacity: 0, y: 8 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.35, ease: "easeOut" as const } };
+      case "slide-up":
+        return { initial: { opacity: 0, y: 12 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.3, ease: "easeOut" as const } };
+      case "fade":
+        return { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: { duration: 0.25 } };
+      case "glitch":
+        return { initial: { opacity: 0, x: -2 }, animate: { opacity: 1, x: 0 }, transition: { duration: 0.12 } };
+      case "rotate":
+        return { initial: { rotate: -2, opacity: 0 }, animate: { rotate: 0, opacity: 1 }, transition: { duration: 0.25 } };
+      case "wave":
+        return { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: { duration: 0.2 } };
+      default:
+        return { initial: { opacity: 0, y: 5 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.2 } };
+    }
+  };
+
+  const animProps = getAnimProps();
+
+  const outlineStyle = preset.outline
+    ? { WebkitTextStroke: `1px ${effectiveColor}`, color: 'transparent' }
+    : {};
+
+  const glitchStyle = animation === "glitch"
+    ? { textShadow: `2px 0 #ff0000, -2px 0 #00ff00, 0 0 4px ${effectiveColor}44` }
+    : {};
+
+  return (
+    <div className="bg-black/90 border-t border-white/10 px-4 py-3">
+      <div className="text-center min-h-[2.5em] flex items-center justify-center">
+        <AnimatePresence mode="wait">
+          {currentSegment && (
+            <motion.div
+              key={currentSegment.startTime}
+              {...animProps}
+              className="w-full"
+            >
+              <span
+                className="inline-block leading-relaxed"
+                style={{
+                  fontFamily: fontOption.family,
+                  fontSize: `${size}px`,
+                  fontWeight: 700,
+                  color: preset.outline ? undefined : effectiveColor,
+                  ...outlineStyle,
+                  ...glitchStyle,
+                }}
+              >
+                {renderKaraokeText()}
+              </span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Progress dots */}
+      {segments.length > 1 && (
+        <div className="flex items-center justify-center gap-1 mt-1.5">
+          {segments.map((seg, i) => (
+            <div
+              key={i}
+              className="rounded-full transition-all duration-300"
+              style={{
+                width: currentSegment === seg ? 10 : 4,
+                height: 4,
+                background: currentSegment === seg ? effectiveColor : 'rgba(255,255,255,0.2)',
+              }}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Synced Subtitle Overlay Component (bonus display on top of video) ────
 
 function SubtitleOverlay({
   captions,
@@ -478,8 +591,7 @@ function SubtitleOverlay({
   size,
   position,
   isActive,
-  currentVideoTime,
-  clipStartTime,
+  clipElapsed,
   clipDuration,
 }: {
   captions: string[];
@@ -490,17 +602,13 @@ function SubtitleOverlay({
   size: number;
   position: string;
   isActive: boolean;
-  currentVideoTime: number;  // Current video playback time in seconds (absolute)
-  clipStartTime: number;     // Clip start time in seconds (absolute)
-  clipDuration: number;      // Clip duration in seconds
+  clipElapsed: number;     // seconds since clip started playing (0-based)
+  clipDuration: number;    // Clip duration in seconds
 }) {
   // Get preset and font
   const preset = CAPTION_PRESETS.find((p) => p.id === style) || CAPTION_PRESETS.find((p) => p.id === "default")!;
   const fontOption = FONT_OPTIONS.find((f) => f.id === font) || FONT_OPTIONS[0];
   const effectiveColor = color !== "#ffffff" ? color : preset.textColor;
-
-  // Calculate elapsed time within the clip (0-based)
-  const clipElapsed = Math.max(0, currentVideoTime - clipStartTime);
 
   // Generate subtitle segments
   const segments = useMemo(
@@ -524,7 +632,6 @@ function SubtitleOverlay({
     Math.floor(segmentProgress * currentSegment.words.length)
   );
 
-  const line = currentSegment.text;
   const words = currentSegment.words;
 
   // Position classes
@@ -535,48 +642,39 @@ function SubtitleOverlay({
       ? "top-[45%] -translate-y-1/2"
       : "bottom-[15%]";
 
-  // Render caption text with word-by-word highlighting
+  // Render caption text with word-by-word highlighting for ALL styles
   const renderCaptionText = () => {
     const displayWords = preset.uppercase ? words.map((w) => w.toUpperCase()) : words;
 
-    // Karaoke animation OR preset highlight with word tracking
-    if (animation === "karaoke" || preset.highlight) {
-      return (
-        <span>
-          {displayWords.map((word, i) => {
-            const isHighlighted = animation === "karaoke"
-              ? i === highlightedWordIndex
-              : i === 0; // For highlight presets, always highlight first word
+    return (
+      <span>
+        {displayWords.map((word, i) => {
+          const isCurrent = i === highlightedWordIndex;
+          const isPast = i < highlightedWordIndex;
 
-            const isPastWord = animation === "karaoke" && i < highlightedWordIndex;
-
-            return (
-              <span
-                key={i}
-                className="inline-block transition-all duration-150"
-                style={{
-                  color: isHighlighted
-                    ? effectiveColor
-                    : isPastWord
-                    ? `${effectiveColor}cc`
-                    : `${effectiveColor}66`,
-                  fontWeight: isHighlighted ? 900 : isPastWord ? 800 : 700,
-                  textShadow: isHighlighted
-                    ? `0 0 20px ${effectiveColor}66, 0 0 40px ${effectiveColor}33`
-                    : undefined,
-                  transform: isHighlighted ? "scale(1.08)" : "scale(1)",
-                }}
-              >
-                {word}{" "}
-              </span>
-            );
-          })}
-        </span>
-      );
-    }
-
-    // Default: just show the full line
-    return preset.uppercase ? line.toUpperCase() : line;
+          return (
+            <span
+              key={i}
+              className="inline-block transition-all duration-150"
+              style={{
+                color: isCurrent
+                  ? effectiveColor
+                  : isPast
+                  ? `${effectiveColor}cc`
+                  : `${effectiveColor}66`,
+                fontWeight: isCurrent ? 900 : isPast ? 800 : 700,
+                textShadow: isCurrent
+                  ? `0 0 20px ${effectiveColor}66, 0 0 40px ${effectiveColor}33, 0 2px 4px rgba(0,0,0,0.8)`
+                  : `0 1px 3px rgba(0,0,0,0.5)`,
+                transform: isCurrent ? "scale(1.08)" : "scale(1)",
+              }}
+            >
+              {word}{" "}
+            </span>
+          );
+        })}
+      </span>
+    );
   };
 
   // Animation variants
@@ -679,19 +777,13 @@ function ClipCard({
   const [imgError, setImgError] = useState(false);
   const [showCaptions, setShowCaptions] = useState(true);
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const playingIframeRef = isPlaying ? iframeRef : { current: null };
-  const { currentTime: ytTime, playerState } = useYouTubePlayer(playingIframeRef);
-  const fallbackElapsed = useElapsedTime(isPlaying);
+  const elapsed = useElapsedTime(isPlaying);
 
   const thumbnailUrl = videoThumbnail || videoSource.thumbnailUrl;
   const embedUrl = getClipEmbedUrl(videoSource, clip.startTime, clip.duration);
-  const captionLines = parseCaptions(clip.captions);
+  const captionLines = ensureCaptions(clip);
 
-  const clipStartSeconds = parseTimeToSeconds(clip.startTime);
   const clipDurationSeconds = parseTimeToSeconds(clip.duration);
-
-  // Use YouTube API time if available, otherwise fall back to elapsed time
-  const effectiveTime = playerState === YT_STATE.PLAYING ? ytTime : (clipStartSeconds + fallbackElapsed);
 
   const handlePlay = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -726,182 +818,198 @@ function ClipCard({
       onClick={onClick}
     >
       {/* Thumbnail / Video Player */}
-      <div className="relative aspect-[9/16] sm:aspect-[9/14] bg-black overflow-hidden">
-        {isPlaying && embedUrl ? (
-          /* ─── Embedded Video Player with Subtitle Overlay ─── */
-          <div className="absolute inset-0">
-            <iframe
-              ref={iframeRef}
-              src={embedUrl}
-              className="absolute inset-0 w-full h-full"
-              allow="autoplay; encrypted-media; picture-in-picture"
-              allowFullScreen
-              title={clip.title}
-              style={{ border: "none" }}
-            />
-
-            {/* Synced Subtitle Overlay */}
-            {showCaptions && captionLines.length > 0 && (
-              <SubtitleOverlay
-                captions={captionLines}
-                style={clip.captionStyle}
-                font={clip.captionFont}
-                animation={clip.captionAnimation}
-                color={clip.captionColor}
-                size={cardFontSize}
-                position={clip.captionPosition}
-                isActive={isPlaying}
-                currentVideoTime={effectiveTime}
-                clipStartTime={clipStartSeconds}
-                clipDuration={clipDurationSeconds}
+      {isPlaying && embedUrl ? (
+        /* ─── Embedded Video Player with Subtitle Bar ─── */
+        <>
+          <div className="relative aspect-[9/16] sm:aspect-[9/14] bg-black overflow-hidden">
+            <div className="absolute inset-0">
+              <iframe
+                ref={iframeRef}
+                src={embedUrl}
+                className="absolute inset-0 w-full h-full"
+                allow="autoplay; encrypted-media; picture-in-picture"
+                allowFullScreen
+                title={clip.title}
+                style={{ border: "none" }}
               />
-            )}
 
-            {/* Controls overlay */}
-            <div className="absolute top-2 right-2 z-30 flex items-center gap-1.5">
-              {/* Caption toggle */}
-              {captionLines.length > 0 && (
-                <button
-                  onClick={toggleCaptions}
-                  className={`w-7 h-7 rounded-full backdrop-blur-sm flex items-center justify-center transition-colors ${
-                    showCaptions
-                      ? "bg-pink-500/70 text-white"
-                      : "bg-black/50 text-white/50 hover:text-white/80"
-                  }`}
-                >
-                  <Type className="w-3.5 h-3.5" />
-                </button>
+              {/* Bonus: Subtitle Overlay attempt (may work on some browsers) */}
+              {showCaptions && captionLines.length > 0 && (
+                <SubtitleOverlay
+                  captions={captionLines}
+                  style={clip.captionStyle}
+                  font={clip.captionFont}
+                  animation={clip.captionAnimation}
+                  color={clip.captionColor}
+                  size={cardFontSize}
+                  position={clip.captionPosition}
+                  isActive={isPlaying}
+                  clipElapsed={elapsed}
+                  clipDuration={clipDurationSeconds}
+                />
               )}
-              {/* Close player */}
-              <button
-                onClick={handleStop}
-                className="w-7 h-7 rounded-full bg-black/70 backdrop-blur-sm flex items-center justify-center text-white/80 hover:text-white hover:bg-black/90 transition-colors"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
+
+              {/* Controls overlay */}
+              <div className="absolute top-2 right-2 z-30 flex items-center gap-1.5">
+                {/* Caption toggle */}
+                {captionLines.length > 0 && (
+                  <button
+                    onClick={toggleCaptions}
+                    className={`w-7 h-7 rounded-full backdrop-blur-sm flex items-center justify-center transition-colors ${
+                      showCaptions
+                        ? "bg-pink-500/70 text-white"
+                        : "bg-black/50 text-white/50 hover:text-white/80"
+                    }`}
+                  >
+                    <Type className="w-3.5 h-3.5" />
+                  </button>
+                )}
+                {/* Close player */}
+                <button
+                  onClick={handleStop}
+                  className="w-7 h-7 rounded-full bg-black/70 backdrop-blur-sm flex items-center justify-center text-white/80 hover:text-white hover:bg-black/90 transition-colors"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
           </div>
-        ) : (
-          /* ─── Thumbnail with Play Button + Caption Preview ─── */
-          <>
-            {thumbnailUrl && !imgError ? (
-              <img
-                src={thumbnailUrl}
-                alt={clip.title}
-                className="absolute inset-0 w-full h-full object-cover"
-                onError={() => setImgError(true)}
-                loading="lazy"
-              />
-            ) : (
-              <div className={`absolute inset-0 bg-gradient-to-br ${gradient}`} />
-            )}
 
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+          {/* PRIMARY subtitle display - guaranteed visible below video */}
+          {showCaptions && captionLines.length > 0 && (
+            <SubtitleBar
+              captions={captionLines}
+              style={clip.captionStyle}
+              font={clip.captionFont}
+              animation={clip.captionAnimation}
+              color={clip.captionColor}
+              size={cardFontSize}
+              isActive={isPlaying}
+              clipElapsed={elapsed}
+              clipDuration={clipDurationSeconds}
+            />
+          )}
+        </>
+      ) : (
+        /* ─── Thumbnail with Play Button + Caption Preview ─── */
+        <div className="relative aspect-[9/16] sm:aspect-[9/14] bg-black overflow-hidden">
+          {thumbnailUrl && !imgError ? (
+            <img
+              src={thumbnailUrl}
+              alt={clip.title}
+              className="absolute inset-0 w-full h-full object-cover"
+              onError={() => setImgError(true)}
+              loading="lazy"
+            />
+          ) : (
+            <div className={`absolute inset-0 bg-gradient-to-br ${gradient}`} />
+          )}
 
-            {/* Caption preview on thumbnail (first line) */}
-            {captionLines.length > 0 && (
-              <div className={`absolute left-0 right-0 ${clip.captionPosition === "top" ? "top-[15%]" : clip.captionPosition === "center" ? "top-[45%]" : "bottom-[18%]"} px-2 z-5 pointer-events-none`}>
-                <p
-                  className="text-center leading-tight"
-                  style={{
-                    fontFamily: FONT_OPTIONS.find((f) => f.id === clip.captionFont)?.family || "'Inter', sans-serif",
-                    fontSize: `${Math.max(8, cardFontSize * 0.7)}px`,
-                    fontWeight: 800,
-                    color: clip.captionColor !== "#ffffff" ? clip.captionColor : (CAPTION_PRESETS.find((p) => p.id === clip.captionStyle)?.textColor || "#ffffff"),
-                    textShadow: "0 1px 3px rgba(0,0,0,0.8)",
-                    background: CAPTION_PRESETS.find((p) => p.id === clip.captionStyle)?.bg || "rgba(0,0,0,0.5)",
-                    display: "inline",
-                    WebkitBoxDecorationBreak: "clone",
-                    padding: "2px 6px",
-                    borderRadius: "4px",
-                  }}
-                >
-                  {CAPTION_PRESETS.find((p) => p.id === clip.captionStyle)?.uppercase
-                    ? captionLines[0].toUpperCase()
-                    : captionLines[0]}
-                </p>
-              </div>
-            )}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
 
-            {/* Content overlay */}
-            <div className="absolute top-3 left-3 right-3">
-              <div className="bg-white/95 backdrop-blur-sm rounded-md px-2 py-1.5 max-w-[85%]">
-                <p className="text-[11px] font-semibold text-black leading-tight line-clamp-2">
-                  {clip.title}
-                </p>
-              </div>
+          {/* Caption preview on thumbnail (first line) */}
+          {captionLines.length > 0 && (
+            <div className={`absolute left-0 right-0 ${clip.captionPosition === "top" ? "top-[15%]" : clip.captionPosition === "center" ? "top-[45%]" : "bottom-[18%]"} px-2 z-5 pointer-events-none`}>
+              <p
+                className="text-center leading-tight"
+                style={{
+                  fontFamily: FONT_OPTIONS.find((f) => f.id === clip.captionFont)?.family || "'Inter', sans-serif",
+                  fontSize: `${Math.max(8, cardFontSize * 0.7)}px`,
+                  fontWeight: 800,
+                  color: clip.captionColor !== "#ffffff" ? clip.captionColor : (CAPTION_PRESETS.find((p) => p.id === clip.captionStyle)?.textColor || "#ffffff"),
+                  textShadow: "0 1px 3px rgba(0,0,0,0.8)",
+                  background: CAPTION_PRESETS.find((p) => p.id === clip.captionStyle)?.bg || "rgba(0,0,0,0.5)",
+                  display: "inline",
+                  WebkitBoxDecorationBreak: "clone",
+                  padding: "2px 6px",
+                  borderRadius: "4px",
+                }}
+              >
+                {CAPTION_PRESETS.find((p) => p.id === clip.captionStyle)?.uppercase
+                  ? captionLines[0].toUpperCase()
+                  : captionLines[0]}
+              </p>
             </div>
+          )}
 
-            {/* Timestamp */}
-            <div className="absolute top-3 right-3">
-              <div className="bg-black/70 backdrop-blur-sm rounded px-1.5 py-0.5">
-                <span className="text-[10px] font-medium text-white/80 tabular-nums">
-                  {clip.startTime} - {clip.duration}
-                </span>
-              </div>
+          {/* Content overlay */}
+          <div className="absolute top-3 left-3 right-3">
+            <div className="bg-white/95 backdrop-blur-sm rounded-md px-2 py-1.5 max-w-[85%]">
+              <p className="text-[11px] font-semibold text-black leading-tight line-clamp-2">
+                {clip.title}
+              </p>
             </div>
+          </div>
 
-            {/* Play button */}
-            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-              {embedUrl ? (
-                <button
-                  onClick={handlePlay}
-                  className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/20 hover:bg-white/30 hover:scale-110 transition-all"
-                >
-                  <Play className="w-5 h-5 text-white ml-0.5" fill="white" />
-                </button>
-              ) : (
-                <div className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20">
-                  <Play className="w-5 h-5 text-white/50 ml-0.5" />
-                </div>
-              )}
+          {/* Timestamp */}
+          <div className="absolute top-3 right-3">
+            <div className="bg-black/70 backdrop-blur-sm rounded px-1.5 py-0.5">
+              <span className="text-[10px] font-medium text-white/80 tabular-nums">
+                {clip.startTime} - {clip.duration}
+              </span>
             </div>
+          </div>
 
-            {/* Always-visible play button */}
-            {embedUrl && !isPlaying && (
+          {/* Play button */}
+          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+            {embedUrl ? (
               <button
                 onClick={handlePlay}
-                className="absolute bottom-14 left-1/2 -translate-x-1/2 w-8 h-8 rounded-full bg-pink-500/80 backdrop-blur-sm flex items-center justify-center shadow-lg shadow-pink-500/30 hover:bg-pink-500 transition-colors"
+                className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/20 hover:bg-white/30 hover:scale-110 transition-all"
               >
-                <Play className="w-3.5 h-3.5 text-white ml-0.5" fill="white" />
+                <Play className="w-5 h-5 text-white ml-0.5" fill="white" />
               </button>
-            )}
-
-            {/* Caption style badge */}
-            {clip.captionStyle && clip.captionStyle !== "default" && (
-              <div className="absolute bottom-14 right-3">
-                <Badge className="bg-black/50 backdrop-blur-sm text-white/60 text-[8px] border-white/10">
-                  <Type className="w-2.5 h-2.5 mr-0.5" />
-                  {clip.captionStyle}
-                </Badge>
+            ) : (
+              <div className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20">
+                <Play className="w-5 h-5 text-white/50 ml-0.5" />
               </div>
             )}
+          </div>
 
-            {/* Score badge */}
-            <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/90 via-black/50 to-transparent">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className={`text-2xl font-bold tabular-nums ${getScoreColor(clip.viralityScore)}`}>
-                    {clip.viralityScore}
-                  </span>
-                  <div className="flex flex-col gap-0.5">
-                    <Trophy className="w-3 h-3 text-white/30" />
-                    <Calendar className="w-3 h-3 text-white/30" />
-                  </div>
+          {/* Always-visible play button */}
+          {embedUrl && !isPlaying && (
+            <button
+              onClick={handlePlay}
+              className="absolute bottom-14 left-1/2 -translate-x-1/2 w-8 h-8 rounded-full bg-pink-500/80 backdrop-blur-sm flex items-center justify-center shadow-lg shadow-pink-500/30 hover:bg-pink-500 transition-colors"
+            >
+              <Play className="w-3.5 h-3.5 text-white ml-0.5" fill="white" />
+            </button>
+          )}
+
+          {/* Caption style badge */}
+          {clip.captionStyle && clip.captionStyle !== "default" && (
+            <div className="absolute bottom-14 right-3">
+              <Badge className="bg-black/50 backdrop-blur-sm text-white/60 text-[8px] border-white/10">
+                <Type className="w-2.5 h-2.5 mr-0.5" />
+                {clip.captionStyle}
+              </Badge>
+            </div>
+          )}
+
+          {/* Score badge */}
+          <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/90 via-black/50 to-transparent">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className={`text-2xl font-bold tabular-nums ${getScoreColor(clip.viralityScore)}`}>
+                  {clip.viralityScore}
+                </span>
+                <div className="flex flex-col gap-0.5">
+                  <Trophy className="w-3 h-3 text-white/30" />
+                  <Calendar className="w-3 h-3 text-white/30" />
                 </div>
-                <div className="flex items-center gap-1">
-                  <button
-                    className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <Star className="w-3 h-3 text-white/50" />
-                  </button>
-                </div>
+              </div>
+              <div className="flex items-center gap-1">
+                <button
+                  className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Star className="w-3 h-3 text-white/50" />
+                </button>
               </div>
             </div>
-          </>
-        )}
-      </div>
+          </div>
+        </div>
+      )}
 
       {/* Card Footer */}
       <div className="bg-[#0a0a0f] border-t border-white/5 p-3">
@@ -943,75 +1051,85 @@ function ClipVideoPlayer({
   const [imgError, setImgError] = useState(false);
   const [showCaptions, setShowCaptions] = useState(true);
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const playingIframeRef = isPlaying ? iframeRef : { current: null };
-  const { currentTime: ytTime, playerState } = useYouTubePlayer(playingIframeRef);
-  const fallbackElapsed = useElapsedTime(isPlaying);
+  const elapsed = useElapsedTime(isPlaying);
 
   const thumbnailUrl = videoThumbnail || videoSource.thumbnailUrl;
   const embedUrl = getClipEmbedUrl(videoSource, clip.startTime, clip.duration);
-  const captionLines = parseCaptions(clip.captions);
+  const captionLines = ensureCaptions(clip);
 
   // Scale font size for the detail panel
   const panelFontSize = Math.max(12, Math.round(clip.captionSize * 0.65));
 
-  const clipStartSeconds = parseTimeToSeconds(clip.startTime);
   const clipDurationSeconds = parseTimeToSeconds(clip.duration);
-
-  // Use YouTube API time if available, otherwise fall back to elapsed time
-  const effectiveTime = playerState === YT_STATE.PLAYING ? ytTime : (clipStartSeconds + fallbackElapsed);
 
   if (isPlaying && embedUrl) {
     return (
-      <div className="relative aspect-[9/16] max-h-[320px] rounded-lg overflow-hidden bg-black border border-white/5">
-        <iframe
-          ref={iframeRef}
-          src={embedUrl}
-          className="absolute inset-0 w-full h-full"
-          allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-          allowFullScreen
-          title={clip.title}
-          style={{ border: "none" }}
-        />
+      <>
+        <div className="relative aspect-[9/16] max-h-[320px] rounded-lg overflow-hidden bg-black border border-white/5">
+          <iframe
+            ref={iframeRef}
+            src={embedUrl}
+            className="absolute inset-0 w-full h-full"
+            allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+            allowFullScreen
+            title={clip.title}
+            style={{ border: "none" }}
+          />
 
-        {/* Synced Subtitle Overlay */}
+          {/* Bonus: Subtitle Overlay attempt (may work on some browsers) */}
+          {showCaptions && captionLines.length > 0 && (
+            <SubtitleOverlay
+              captions={captionLines}
+              style={clip.captionStyle}
+              font={clip.captionFont}
+              animation={clip.captionAnimation}
+              color={clip.captionColor}
+              size={panelFontSize}
+              position={clip.captionPosition}
+              isActive={isPlaying}
+              clipElapsed={elapsed}
+              clipDuration={clipDurationSeconds}
+            />
+          )}
+
+          {/* Controls */}
+          <div className="absolute top-2 right-2 z-30 flex items-center gap-1.5">
+            {captionLines.length > 0 && (
+              <button
+                onClick={() => setShowCaptions(!showCaptions)}
+                className={`w-7 h-7 rounded-full backdrop-blur-sm flex items-center justify-center transition-colors ${
+                  showCaptions
+                    ? "bg-pink-500/70 text-white"
+                    : "bg-black/50 text-white/50 hover:text-white/80"
+                }`}
+              >
+                <Type className="w-3.5 h-3.5" />
+              </button>
+            )}
+            <button
+              onClick={() => setIsPlaying(false)}
+              className="w-7 h-7 rounded-full bg-black/70 backdrop-blur-sm flex items-center justify-center text-white/80 hover:text-white hover:bg-black/90 transition-colors"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+
+        {/* PRIMARY subtitle display - guaranteed visible below video */}
         {showCaptions && captionLines.length > 0 && (
-          <SubtitleOverlay
+          <SubtitleBar
             captions={captionLines}
             style={clip.captionStyle}
             font={clip.captionFont}
             animation={clip.captionAnimation}
             color={clip.captionColor}
             size={panelFontSize}
-            position={clip.captionPosition}
             isActive={isPlaying}
-            currentVideoTime={effectiveTime}
-            clipStartTime={clipStartSeconds}
+            clipElapsed={elapsed}
             clipDuration={clipDurationSeconds}
           />
         )}
-
-        {/* Controls */}
-        <div className="absolute top-2 right-2 z-30 flex items-center gap-1.5">
-          {captionLines.length > 0 && (
-            <button
-              onClick={() => setShowCaptions(!showCaptions)}
-              className={`w-7 h-7 rounded-full backdrop-blur-sm flex items-center justify-center transition-colors ${
-                showCaptions
-                  ? "bg-pink-500/70 text-white"
-                  : "bg-black/50 text-white/50 hover:text-white/80"
-              }`}
-            >
-              <Type className="w-3.5 h-3.5" />
-            </button>
-          )}
-          <button
-            onClick={() => setIsPlaying(false)}
-            className="w-7 h-7 rounded-full bg-black/70 backdrop-blur-sm flex items-center justify-center text-white/80 hover:text-white hover:bg-black/90 transition-colors"
-          >
-            <X className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      </div>
+      </>
     );
   }
 

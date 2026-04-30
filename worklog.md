@@ -89,3 +89,56 @@ Stage Summary:
 - All lint errors related to ClipEditorSection.tsx resolved
 - Code deployed to EC2 at 18.221.5.26
 - API endpoint /api/process returning 200 OK
+
+## 2026-03-05: Rewrite Subtitle System in ClipEditorSection.tsx
+
+### Task
+Rewrite the subtitle system to fix the critical bug where subtitles were invisible over YouTube iframes.
+
+### Changes Made
+
+1. **Removed `useYouTubePlayer` hook and `YT_STATE` constant** (lines 325-397 of original)
+   - The YouTube IFrame Player API was fragile and didn't reliably track video time in React's dynamic rendering
+   - Replaced all usages with the simpler `useElapsedTime` hook
+
+2. **Created `SubtitleBar` component** (new, ~120 lines)
+   - Shows subtitles in a dedicated dark bar below the video player - guaranteed visible
+   - Supports ALL caption styles with word-by-word karaoke highlighting:
+     - Current word: full color, font-weight 900, glow text-shadow, scale(1.05)
+     - Past words: slightly dimmed (`color + bb`), font-weight 800
+     - Future words: faded (`color + 55`), font-weight 600
+   - Animated segment transitions matching the animation selection (bounce, slide-up, fade, etc.)
+   - Progress dots showing current subtitle segment
+   - Supports outline/glitch styles
+
+3. **Created `ensureCaptions` helper function**
+   - Auto-generates captions from clip title if captions are null/empty
+   - Splits title words into 2 subtitle lines
+   - Returns `['Loading...']` as fallback for empty titles
+
+4. **Updated `SubtitleOverlay` component** (bonus overlay on top of video)
+   - Changed props: replaced `currentVideoTime` and `clipStartTime` with `clipElapsed` (0-based)
+   - Now uses word-by-word karaoke highlighting for ALL styles (not just karaoke/highlight presets)
+   - Added stronger text shadows for better visibility
+
+5. **Updated `ClipCard` component**
+   - Removed `useYouTubePlayer` usage and `playingIframeRef` hack
+   - Now uses `useElapsedTime(isPlaying)` directly
+   - Removed `clipStartSeconds` and `effectiveTime` (no longer needed)
+   - Added `SubtitleBar` below the video container when playing (PRIMARY display)
+   - Kept `SubtitleOverlay` as bonus overlay inside the video
+   - Changed `parseCaptions` to `ensureCaptions` for auto-generation
+
+6. **Updated `ClipVideoPlayer` component**
+   - Same changes as ClipCard: uses `useElapsedTime`, shows SubtitleBar below video
+   - Returns a fragment (`<>...</>`) instead of single div to include SubtitleBar
+
+7. **Removed `enablejsapi=1&origin=` from YouTube embed URL**
+   - No longer needed since we're not using the YouTube IFrame Player API
+
+### Files Modified
+- `/home/z/my-project/src/components/sections/ClipEditorSection.tsx` (complete rewrite of subtitle system)
+
+### Lint Status
+- No new lint errors introduced (pre-existing errors in deploy-ec2.js and server.js)
+- Dev server compiles and runs successfully
