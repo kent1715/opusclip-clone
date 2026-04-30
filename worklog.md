@@ -72,3 +72,20 @@ Stage Summary:
 - Fallback elapsed time tracking ensures subtitles work even without YouTube API
 - Word-by-word karaoke highlighting progresses based on actual video time
 - All existing caption styles, animations, fonts, colors, and positions preserved
+
+---
+Task ID: 3
+Agent: Main Agent
+Task: Fix lint errors and deploy synced subtitle system to EC2
+
+Work Log:
+- Removed old CaptionOverlay component that was causing lint errors (setState in effect)
+- Verified lint passes (only pre-existing errors in deploy-ec2.js and server.js remain)
+- Pushed code to GitHub (kent1715/opusclip-clone)
+- Pulled latest code on EC2 and restarted PM2
+- Verified API responds correctly on EC2
+
+Stage Summary:
+- All lint errors related to ClipEditorSection.tsx resolved
+- Code deployed to EC2 at 18.221.5.26
+- API endpoint /api/process returning 200 OK
