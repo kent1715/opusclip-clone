@@ -1,18 +1,45 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import crypto from 'crypto'
+import bcrypt from 'bcryptjs'
 import { SESSION_COOKIE } from '@/lib/auth'
+import {
+  checkLoginRateLimit,
+  recordLoginAttempt,
+  getLoginIdentifier,
+  getClientIp,
+  formatRetryTime,
+  sanitizeEmail,
+} from '@/lib/auth-security'
 
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { email, password } = body
+    const rawEmail = body.email
+    const rawPassword = body.password
 
     // Validate required fields
-    if (!email || !password) {
+    if (!rawEmail || !rawPassword) {
       return NextResponse.json(
         { error: 'Email and password are required' },
         { status: 400 }
+      )
+    }
+
+    // Sanitize email
+    const email = sanitizeEmail(rawEmail)
+    const ip = getClientIp(request)
+    const identifier = getLoginIdentifier(email, ip)
+
+    // Check rate limit
+    const rateLimit = checkLoginRateLimit(identifier)
+    if (!rateLimit.allowed) {
+      const retryTime = formatRetryTime(rateLimit.retryAfterMs || 0)
+      return NextResponse.json(
+        {
+          error: `Too many login attempts. Please try again in ${retryTime}.`,
+          retryAfter: rateLimit.retryAfterMs,
+        },
+        { status: 429 }
       )
     }
 
@@ -22,24 +49,32 @@ export async function POST(request: Request) {
     })
 
     if (!user) {
+      recordLoginAttempt(identifier, false)
       return NextResponse.json(
         { error: 'Invalid email or password' },
         { status: 401 }
       )
     }
 
-    // Hash the provided password and compare
-    const hashedPassword = crypto
-      .createHash('sha256')
-      .update(password)
-      .digest('hex')
+    // Compare password with bcrypt hash
+    const isValid = await bcrypt.compare(rawPassword, user.password || '')
 
-    if (user.password !== hashedPassword) {
+    if (!isValid) {
+      recordLoginAttempt(identifier, false)
+      const remaining = rateLimit.remainingAttempts ?? 0
       return NextResponse.json(
-        { error: 'Invalid email or password' },
+        {
+          error: 'Invalid email or password',
+          ...(remaining <= 3 && remaining > 0
+            ? { warning: `${remaining} attempt${remaining === 1 ? '' : 's'} remaining before temporary lockout` }
+            : {}),
+        },
         { status: 401 }
       )
     }
+
+    // Record successful login
+    recordLoginAttempt(identifier, true)
 
     // Return user object without password
     const { password: _, ...userWithoutPassword } = user

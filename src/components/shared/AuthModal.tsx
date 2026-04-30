@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Loader2, Mail, Lock, User, Github, KeyRound } from "lucide-react";
 import { useAppStore } from "@/lib/store";
@@ -49,6 +49,10 @@ export function AuthModal() {
   // Social login state
   const [socialLoading, setSocialLoading] = useState<string | null>(null);
 
+  // Password strength state
+  const [passwordStrength, setPasswordStrength] = useState<{ score: number; strength: string } | null>(null);
+  const [socialMessage, setSocialMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
   const resetForm = () => {
     setSignInEmail("");
     setSignInPassword("");
@@ -64,6 +68,8 @@ export function AuthModal() {
     setForgotEmail("");
     setForgotSuccess(false);
     setForgotError("");
+    setPasswordStrength(null);
+    setSocialMessage(null);
   };
 
   const handleSignIn = async (e: React.FormEvent) => {
@@ -213,51 +219,55 @@ export function AuthModal() {
     }
   };
 
-  const handleSocialLogin = async (provider: string) => {
-    setSocialLoading(provider);
-    try {
-      // Create an account with social provider email format
-      const email = `${provider.toLowerCase()}_user@opusclip.app`;
-      const name = `${provider} User`;
-      const socialPassword = `social_${provider.toLowerCase()}_login`;
-      const res = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email,
-          name,
-          password: socialPassword,
-        }),
-      });
-      const data = await res.json();
-      let loggedInUser = null;
-      if (!res.ok) {
-        // If user already exists, try logging in
-        const loginRes = await fetch("/api/auth/login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password: socialPassword }),
-        });
-        if (!loginRes.ok) {
-          setSignInError(`Failed to sign in with ${provider}. Please try again.`);
-          return;
+  // Handle OAuth redirect results from URL params
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const socialStatus = params.get("social");
+    if (socialStatus === "success") {
+      // Clean the URL
+      const url = new URL(window.location.href);
+      url.searchParams.delete("social");
+      window.history.replaceState({}, "", url.toString());
+
+      // Fetch the authenticated user
+      const fetchUser = async () => {
+        try {
+          const res = await fetch("/api/auth/me");
+          if (res.ok) {
+            const data = await res.json();
+            if (data.user) {
+              setUser(data.user);
+              localStorage.setItem("opus_user_id", data.user.id);
+              setShowAuthModal(false);
+              setCurrentView("dashboard");
+              resetForm();
+            }
+          }
+        } catch (err) {
+          console.error("Failed to fetch user after OAuth:", err);
         }
-        const loginData = await loginRes.json();
-        loggedInUser = loginData.user;
-        setUser(loggedInUser);
-      } else {
-        loggedInUser = data.user;
-        setUser(loggedInUser);
-      }
-      localStorage.setItem("opus_user_id", loggedInUser?.id || "");
-      setShowAuthModal(false);
-      setCurrentView("dashboard");
-      resetForm();
-    } catch {
-      setSignInError(`Something went wrong with ${provider} sign in.`);
-    } finally {
-      setSocialLoading(null);
+      };
+      fetchUser();
+    } else if (socialStatus === "error") {
+      // Clean the URL
+      const url = new URL(window.location.href);
+      url.searchParams.delete("social");
+      window.history.replaceState({}, "", url.toString());
+
+      setSocialMessage({
+        type: "error",
+        text: "Social sign-in failed. Please try again or use email/password.",
+      });
+      setShowAuthModal(true);
+      // Auto-dismiss the message after 5 seconds
+      setTimeout(() => setSocialMessage(null), 5000);
     }
+  }, [setUser, setShowAuthModal, setCurrentView]);
+
+  const handleSocialLogin = (provider: string) => {
+    // Redirect browser to the OAuth initiation endpoint
+    const providerSlug = provider.toLowerCase();
+    window.location.href = `/api/auth/oauth/${providerSlug}`;
   };
 
   const handleTabChange = (value: string) => {
@@ -329,6 +339,15 @@ export function AuthModal() {
               {/* Sign In Tab */}
               <TabsContent value="signin" className="px-6 pb-6 pt-4">
                 <form onSubmit={handleSignIn} className="space-y-4">
+                  {socialMessage && socialMessage.type === "error" && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="rounded-lg bg-orange-500/10 border border-orange-500/20 px-4 py-3 text-sm text-orange-400"
+                    >
+                      {socialMessage.text}
+                    </motion.div>
+                  )}
                   {signInError && (
                     <motion.div
                       initial={{ opacity: 0, y: -4 }}
@@ -601,10 +620,63 @@ export function AuthModal() {
                         type="password"
                         placeholder="At least 6 characters"
                         value={signUpPassword}
-                        onChange={(e) => setSignUpPassword(e.target.value)}
+                        onChange={(e) => {
+                          setSignUpPassword(e.target.value);
+                          // Calculate password strength
+                          const pw = e.target.value;
+                          if (!pw) { setPasswordStrength(null); return; }
+                          let score = 0;
+                          if (pw.length >= 8) score += 20; else if (pw.length >= 6) score += 10;
+                          if (pw.length >= 12) score += 10;
+                          if (/[a-z]/.test(pw)) score += 15;
+                          if (/[A-Z]/.test(pw)) score += 15;
+                          if (/[0-9]/.test(pw)) score += 15;
+                          if (/[^a-zA-Z0-9]/.test(pw)) score += 15;
+                          if (pw.length >= 16) score += 10;
+                          score = Math.min(100, score);
+                          const strength = score < 30 ? "weak" : score < 55 ? "fair" : score < 80 ? "good" : "strong";
+                          setPasswordStrength({ score, strength });
+                        }}
                         className="h-11 bg-white/5 border-white/10 text-white placeholder:text-white/30 pl-10 focus-visible:border-pink-500/50 focus-visible:ring-pink-500/20"
                       />
                     </div>
+                    {/* Password strength indicator */}
+                    {passwordStrength && signUpPassword && (
+                      <div className="space-y-1.5 mt-1">
+                        <div className="flex gap-1">
+                          {[1, 2, 3, 4].map((i) => (
+                            <div
+                              key={i}
+                              className={`h-1 flex-1 rounded-full transition-colors ${
+                                passwordStrength.score >= i * 25
+                                  ? passwordStrength.strength === "weak"
+                                    ? "bg-red-500"
+                                    : passwordStrength.strength === "fair"
+                                    ? "bg-yellow-500"
+                                    : passwordStrength.strength === "good"
+                                    ? "bg-green-400"
+                                    : "bg-green-500"
+                                  : "bg-white/10"
+                              }`}
+                            />
+                          ))}
+                        </div>
+                        <p className={`text-[10px] ${
+                          passwordStrength.strength === "weak"
+                            ? "text-red-400"
+                            : passwordStrength.strength === "fair"
+                            ? "text-yellow-400"
+                            : passwordStrength.strength === "good"
+                            ? "text-green-400"
+                            : "text-green-500"
+                        }`}>
+                          {passwordStrength.strength === "weak" && "Weak — add uppercase, numbers, or symbols"}
+                          {passwordStrength.strength === "fair" && "Fair — try adding more variety"}
+                          {passwordStrength.strength === "good" && "Good password"}
+                          {passwordStrength.strength === "strong" && "Strong password!"}
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   <div className="space-y-2">

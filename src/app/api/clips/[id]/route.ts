@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
+import { VALID_CAPTION_STYLES, VALID_LAYOUTS, VALID_FONT_IDS, VALID_ANIMATION_IDS, VALID_CAPTION_POSITIONS } from "@/lib/constants";
 
 // GET: Get single clip with video info
 export async function GET(
@@ -85,23 +86,41 @@ export async function PATCH(
     }
 
     // Validate captionStyle if provided
-    if (
-      captionStyle &&
-      !["default", "bold", "karaoke", "outline"].includes(captionStyle)
-    ) {
+    if (captionStyle && !VALID_CAPTION_STYLES.includes(captionStyle)) {
       return NextResponse.json(
-        {
-          error:
-            "Invalid captionStyle. Must be: default, bold, karaoke, or outline",
-        },
+        { error: `Invalid captionStyle. Must be one of: ${VALID_CAPTION_STYLES.join(", ")}` },
+        { status: 400 }
+      );
+    }
+
+    // Validate captionFont if provided
+    if (captionFont && !VALID_FONT_IDS.includes(captionFont)) {
+      return NextResponse.json(
+        { error: `Invalid captionFont. Must be one of: ${VALID_FONT_IDS.join(", ")}` },
+        { status: 400 }
+      );
+    }
+
+    // Validate captionAnimation if provided
+    if (captionAnimation && !VALID_ANIMATION_IDS.includes(captionAnimation)) {
+      return NextResponse.json(
+        { error: `Invalid captionAnimation. Must be one of: ${VALID_ANIMATION_IDS.join(", ")}` },
+        { status: 400 }
+      );
+    }
+
+    // Validate captionPosition if provided
+    if (captionPosition && !VALID_CAPTION_POSITIONS.includes(captionPosition)) {
+      return NextResponse.json(
+        { error: `Invalid captionPosition. Must be one of: ${VALID_CAPTION_POSITIONS.join(", ")}` },
         { status: 400 }
       );
     }
 
     // Validate layout if provided
-    if (layout && !["9:16", "1:1", "16:9"].includes(layout)) {
+    if (layout && !VALID_LAYOUTS.includes(layout as typeof VALID_LAYOUTS[number])) {
       return NextResponse.json(
-        { error: "Invalid layout. Must be: 9:16, 1:1, or 16:9" },
+        { error: `Invalid layout. Must be one of: ${VALID_LAYOUTS.join(", ")}` },
         { status: 400 }
       );
     }

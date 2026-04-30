@@ -44,6 +44,12 @@ import {
   Eye,
   MoveUp,
   ArrowUpFromLine,
+  Upload,
+  FileText,
+  Minus,
+  ChevronRight,
+  Globe,
+  Link2,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
@@ -71,63 +77,16 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-
-// ─── Caption Style Presets (same as ProcessingSection) ────────────────────
-
-const CAPTION_PRESETS = [
-  { id: "karaoke", name: "Karaoke", textColor: "#4ade80", highlight: true, uppercase: true, bg: "rgba(0,0,0,0.6)" },
-  { id: "deep-diver", name: "Deep Diver", textColor: "#94a3b8", highlight: false, uppercase: false, bg: "rgba(0,0,0,0.5)" },
-  { id: "pod-p", name: "Pod P", textColor: "#f472b6", highlight: false, uppercase: true, bg: "rgba(0,0,0,0.6)" },
-  { id: "popline", name: "Popline", textColor: "#ffffff", highlight: false, uppercase: true, bg: "transparent", outline: true },
-  { id: "seamless-bounce", name: "Seamless Bounce", textColor: "#4ade80", highlight: false, uppercase: false, bg: "rgba(0,0,0,0.4)" },
-  { id: "gradient-wave", name: "Gradient Wave", textColor: "#67e8f9", highlight: false, uppercase: true, bg: "rgba(0,0,0,0.5)" },
-  { id: "beasty", name: "Beasty", textColor: "#d1d5db", highlight: false, uppercase: true, bg: "rgba(0,0,0,0.6)" },
-  { id: "youshaei", name: "Youshaei", textColor: "#5eead4", highlight: true, uppercase: true, bg: "rgba(0,0,0,0.5)" },
-  { id: "mozi", name: "Mozi", textColor: "#86efac", highlight: false, uppercase: true, bg: "rgba(0,0,0,0.5)" },
-  { id: "glitch-infinite", name: "Glitch Infinite", textColor: "#fb923c", highlight: false, uppercase: false, bg: "rgba(0,0,0,0.6)" },
-  { id: "baby-earthquake", name: "Baby Earthquake", textColor: "#fde68a", highlight: false, uppercase: false, bg: "rgba(0,0,0,0.5)" },
-  { id: "neon-pulse", name: "Neon Pulse", textColor: "#e879f9", highlight: false, uppercase: true, bg: "rgba(0,0,0,0.5)" },
-  { id: "default", name: "Default", textColor: "#ffffff", highlight: false, uppercase: false, bg: "rgba(0,0,0,0.6)" },
-  { id: "bold", name: "Bold", textColor: "#ffffff", highlight: false, uppercase: true, bg: "rgba(0,0,0,0.7)" },
-  { id: "outline", name: "Outline", textColor: "#ffffff", highlight: false, uppercase: true, bg: "transparent", outline: true },
-];
-
-// ─── Font Options ────────────────────────────────────────────────────────
-
-const FONT_OPTIONS = [
-  { id: "inter", name: "Inter", family: "'Inter', sans-serif" },
-  { id: "montserrat", name: "Montserrat", family: "'Montserrat', sans-serif" },
-  { id: "poppins", name: "Poppins", family: "'Poppins', sans-serif" },
-  { id: "roboto", name: "Roboto", family: "'Roboto', sans-serif" },
-  { id: "oswald", name: "Oswald", family: "'Oswald', sans-serif" },
-  { id: "bebas", name: "Bebas Neue", family: "'Bebas Neue', sans-serif" },
-  { id: "permanent", name: "Permanent Marker", family: "'Permanent Marker', cursive" },
-  { id: "source-code", name: "Source Code Pro", family: "'Source Code Pro', monospace" },
-];
-
-const ANIMATION_OPTIONS = [
-  { id: "none", name: "None" },
-  { id: "bounce", name: "Bounce" },
-  { id: "wave", name: "Wave" },
-  { id: "fade", name: "Fade In" },
-  { id: "slide-up", name: "Slide Up" },
-  { id: "glitch", name: "Glitch" },
-  { id: "karaoke", name: "Karaoke" },
-  { id: "rotate", name: "Rotate" },
-];
-
-const COLOR_OPTIONS = [
-  { id: "white", name: "White", value: "#ffffff" },
-  { id: "yellow", name: "Yellow", value: "#fde047" },
-  { id: "green", name: "Green", value: "#4ade80" },
-  { id: "cyan", name: "Cyan", value: "#67e8f9" },
-  { id: "blue", name: "Blue", value: "#60a5fa" },
-  { id: "purple", name: "Purple", value: "#c084fc" },
-  { id: "pink", name: "Pink", value: "#f472b6" },
-  { id: "red", name: "Red", value: "#f87171" },
-  { id: "orange", name: "Orange", value: "#fb923c" },
-  { id: "black", name: "Black", value: "#000000" },
-];
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { CAPTION_PRESETS, FONT_OPTIONS, ANIMATION_OPTIONS, COLOR_OPTIONS } from "@/lib/constants";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -178,6 +137,23 @@ interface TemplateData {
 type CaptionStyle = "default" | "bold" | "karaoke" | "outline";
 type LayoutOption = "9:16" | "1:1" | "16:9";
 type CaptionPosition = "bottom" | "center" | "top";
+
+// ─── Share / Platform Constants ───────────────────────────────────────────
+
+interface ShareData {
+  shareUrl: string;
+  shareLinks: Record<string, string>;
+  publishedPlatforms: string[];
+}
+
+const SHARE_PLATFORMS = [
+  { id: "youtube", name: "YouTube", color: "#FF0000" },
+  { id: "tiktok", name: "TikTok", color: "#00F2EA" },
+  { id: "instagram", name: "Instagram", color: "#E4405F" },
+  { id: "twitter", name: "Twitter / X", color: "#1DA1F2" },
+  { id: "facebook", name: "Facebook", color: "#1877F2" },
+  { id: "linkedin", name: "LinkedIn", color: "#0A66C2" },
+] as const;
 
 // ─── Video URL Helpers ─────────────────────────────────────────────────────
 
@@ -934,10 +910,18 @@ function ClipCard({
 
           {/* Content overlay */}
           <div className="absolute top-3 left-3 right-3">
-            <div className="bg-white/95 backdrop-blur-sm rounded-md px-2 py-1.5 max-w-[85%]">
-              <p className="text-[11px] font-semibold text-black leading-tight line-clamp-2">
-                {clip.title}
-              </p>
+            <div className="flex items-start gap-1.5">
+              <div className="bg-white/95 backdrop-blur-sm rounded-md px-2 py-1.5 max-w-[85%]">
+                <p className="text-[11px] font-semibold text-black leading-tight line-clamp-2">
+                  {clip.title}
+                </p>
+              </div>
+              {clip.isPublished && (
+                <Badge className="bg-green-500/80 backdrop-blur-sm text-white text-[7px] px-1.5 py-0 h-4 shrink-0 border-0 gap-0.5">
+                  <Globe className="w-2 h-2" />
+                  Live
+                </Badge>
+              )}
             </div>
           </div>
 
@@ -1229,6 +1213,256 @@ function ClipVideoPlayer({
   );
 }
 
+// ─── Caption Line Editor Component ─────────────────────────────────────────
+
+function CaptionLineEditor({
+  captions,
+  onChange,
+}: {
+  captions: string;
+  onChange: (value: string) => void;
+}) {
+  const lines = useMemo(() => {
+    if (!captions.trim()) return [""];
+    return captions.split("|").map((s) => s.trim());
+  }, [captions]);
+
+  const updateLine = useCallback(
+    (index: number, value: string) => {
+      const newLines = [...lines];
+      newLines[index] = value;
+      onChange(newLines.map((l) => l.trim()).join("|"));
+    },
+    [lines, onChange]
+  );
+
+  const removeLine = useCallback(
+    (index: number) => {
+      if (lines.length <= 1) return;
+      const newLines = lines.filter((_, i) => i !== index);
+      onChange(newLines.map((l) => l.trim()).join("|"));
+    },
+    [lines, onChange]
+  );
+
+  const addLine = useCallback(() => {
+    onChange([...lines, ""].map((l) => l.trim()).join("|"));
+  }, [lines, onChange]);
+
+  return (
+    <div className="space-y-1.5 max-h-60 overflow-y-auto pr-1 custom-scrollbar">
+      {lines.map((line, i) => (
+        <div key={i} className="flex items-center gap-1.5 group">
+          <span className="text-[9px] text-white/25 w-4 text-right shrink-0 tabular-nums">
+            {i + 1}
+          </span>
+          <Input
+            value={line}
+            onChange={(e) => updateLine(i, e.target.value)}
+            className="h-7 bg-white/[0.03] border-white/10 text-white text-xs focus-visible:border-pink-500/50 focus-visible:ring-pink-500/20"
+            placeholder={`Caption line ${i + 1}`}
+          />
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => removeLine(i)}
+            disabled={lines.length <= 1}
+            className="h-7 w-7 shrink-0 text-white/20 hover:text-red-400 hover:bg-red-500/10 disabled:opacity-20"
+          >
+            <Minus className="w-3 h-3" />
+          </Button>
+        </div>
+      ))}
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={addLine}
+        className="w-full h-7 text-[10px] text-white/30 hover:text-white/60 hover:bg-white/5 border border-dashed border-white/10"
+      >
+        <Plus className="w-3 h-3 mr-1" />
+        Add Line
+      </Button>
+    </div>
+  );
+}
+
+// ─── SharePanel Component ─────────────────────────────────────────────────
+
+function SharePanel({
+  shareData,
+  publishedTo,
+}: {
+  shareData: ShareData | null;
+  publishedTo: string;
+}) {
+  const [copied, setCopied] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(true);
+
+  // Parse the platforms the clip was published to
+  const activePlatforms = useMemo(() => {
+    try {
+      const parsed = JSON.parse(publishedTo);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }, [publishedTo]);
+
+  const handleCopy = async () => {
+    if (!shareData?.shareUrl) return;
+    try {
+      await navigator.clipboard.writeText(shareData.shareUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Fallback
+      const textArea = document.createElement("textarea");
+      textArea.value = shareData.shareUrl;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textArea);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  if (!shareData) return null;
+
+  return (
+    <div className="rounded-lg border border-white/10 bg-white/[0.02] overflow-hidden">
+      {/* Header - clickable to expand/collapse */}
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-white/[0.02] transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <Share2 className="w-3.5 h-3.5 text-pink-400" />
+          <span className="text-xs font-medium text-white/70">Share & Publish</span>
+          {activePlatforms.length > 0 && (
+            <Badge className="bg-green-500/15 text-green-400 border-green-500/20 text-[8px] px-1.5 py-0">
+              {activePlatforms.length} platform{activePlatforms.length !== 1 ? "s" : ""}
+            </Badge>
+          )}
+        </div>
+        <ChevronDown
+          className={`w-3.5 h-3.5 text-white/30 transition-transform ${isExpanded ? "rotate-180" : ""}`}
+        />
+      </button>
+
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <div className="px-3 pb-3 space-y-3">
+              {/* Share link with copy button */}
+              <div className="space-y-1.5">
+                <Label className="text-[10px] text-white/40 flex items-center gap-1">
+                  <Link2 className="w-2.5 h-2.5" />
+                  Share Link
+                </Label>
+                <div className="flex items-center gap-1.5">
+                  <div className="flex-1 h-8 px-2.5 flex items-center rounded-md border border-white/10 bg-white/[0.03] text-[11px] text-white/60 truncate">
+                    {shareData.shareUrl}
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleCopy}
+                    className={`h-8 px-2.5 shrink-0 border-white/10 text-xs transition-all ${
+                      copied
+                        ? "bg-green-500/15 border-green-500/30 text-green-400"
+                        : "bg-white/[0.03] text-white/50 hover:bg-white/[0.06] hover:text-white/80"
+                    }`}
+                  >
+                    {copied ? (
+                      <>
+                        <Check className="w-3 h-3 mr-1" />
+                        Copied!
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3 h-3 mr-1" />
+                        Copy
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Platform selector (read-only display of selected platforms) */}
+              {activePlatforms.length > 0 && (
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] text-white/40 flex items-center gap-1">
+                    <Globe className="w-2.5 h-2.5" />
+                    Published Platforms
+                  </Label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {activePlatforms.map((platformId) => {
+                      const platform = SHARE_PLATFORMS.find((p) => p.id === platformId);
+                      if (!platform) return null;
+                      return (
+                        <span
+                          key={platformId}
+                          className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full border border-white/10 bg-white/[0.03]"
+                          style={{ borderColor: `${platform.color}33` }}
+                        >
+                          <span
+                            className="w-1.5 h-1.5 rounded-full"
+                            style={{ backgroundColor: platform.color }}
+                          />
+                          <span className="text-white/60">{platform.name}</span>
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Social share buttons */}
+              {shareData.shareLinks && Object.keys(shareData.shareLinks).length > 0 && (
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] text-white/40 flex items-center gap-1">
+                    <ExternalLink className="w-2.5 h-2.5" />
+                    Share to Platform
+                  </Label>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {Object.entries(shareData.shareLinks).map(([platformId, url]) => {
+                      const platform = SHARE_PLATFORMS.find((p) => p.id === platformId);
+                      if (!platform) return null;
+                      return (
+                        <a
+                          key={platformId}
+                          href={url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-white/10 bg-white/[0.03] text-[10px] text-white/50 hover:bg-white/[0.06] hover:text-white/80 hover:border-white/20 transition-all"
+                        >
+                          <span
+                            className="w-2 h-2 rounded-full shrink-0"
+                            style={{ backgroundColor: platform.color }}
+                          />
+                          <span className="truncate">{platform.name}</span>
+                          <ExternalLink className="w-2.5 h-2.5 ml-auto shrink-0 opacity-40" />
+                        </a>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 // ─── Clip Detail Panel (with caption editing) ────────────────────────────────
 
 function ClipDetailPanel({
@@ -1236,15 +1470,20 @@ function ClipDetailPanel({
   templates,
   videoSource,
   videoThumbnail,
+  isDownloading,
   onClose,
   onSave,
   onDelete,
   onTogglePublish,
+  onDownload,
+  userId,
+  shareData,
 }: {
   clip: ClipData;
   templates: TemplateData[];
   videoSource: VideoSource;
   videoThumbnail: string | null;
+  isDownloading: boolean;
   onClose: () => void;
   onSave: (data: {
     title: string;
@@ -1261,7 +1500,10 @@ function ClipDetailPanel({
     isPublished: boolean;
   }) => void;
   onDelete: () => void;
-  onTogglePublish: (published: boolean) => void;
+  onTogglePublish: (published: boolean, platforms?: string[]) => void;
+  onDownload: () => void;
+  userId: string;
+  shareData: ShareData | null;
 }) {
   const [editTitle, setEditTitle] = useState(clip.title);
   const [editCaptions, setEditCaptions] = useState(clip.captions || "");
@@ -1285,6 +1527,19 @@ function ClipDetailPanel({
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showCaptionCustomizer, setShowCaptionCustomizer] = useState(false);
+  const [isUploadingSrt, setIsUploadingSrt] = useState(false);
+  const [srtUploadError, setSrtUploadError] = useState<string | null>(null);
+  const [srtUploadSuccess, setSrtUploadSuccess] = useState(false);
+  const srtFileInputRef = useRef<HTMLInputElement>(null);
+  const [showPlatformDialog, setShowPlatformDialog] = useState(false);
+  const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(() => {
+    try {
+      const parsed = JSON.parse(clip.publishedTo);
+      return Array.isArray(parsed) ? parsed.filter((p: string) => p !== "all") : [];
+    } catch {
+      return [];
+    }
+  });
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -1509,18 +1764,82 @@ function ClipDetailPanel({
               )}
             </div>
 
-            {/* Captions Text Input */}
-            <div className="space-y-1.5">
-              <Label className="text-xs text-white/50">Captions (pipe | separated for auto-cycle)</Label>
-              <Textarea
-                value={editCaptions}
-                onChange={(e) => setEditCaptions(e.target.value)}
-                rows={3}
-                className="bg-white/[0.03] border-white/10 text-white text-sm resize-none focus-visible:border-pink-500/50 focus-visible:ring-pink-500/20"
-                placeholder="Line 1 | Line 2 | Line 3"
+            {/* SRT Upload */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs text-white/50 flex items-center gap-1.5">
+                  <FileText className="w-3 h-3" />
+                  Upload SRT / VTT
+                </Label>
+                <input
+                  ref={srtFileInputRef}
+                  type="file"
+                  accept=".srt,.vtt"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    setIsUploadingSrt(true);
+                    setSrtUploadError(null);
+                    setSrtUploadSuccess(false);
+                    try {
+                      const formData = new FormData();
+                      formData.append("file", file);
+                      const res = await fetch(`/api/srt?userId=${userId}`, {
+                        method: "POST",
+                        body: formData,
+                      });
+                      const json = await res.json();
+                      if (!res.ok || !json.success) {
+                        throw new Error(json.error || "Failed to parse SRT file");
+                      }
+                      // Replace captions with parsed SRT content
+                      setEditCaptions(json.data.captions || "");
+                      setSrtUploadSuccess(true);
+                      setTimeout(() => setSrtUploadSuccess(false), 3000);
+                    } catch (err) {
+                      setSrtUploadError(err instanceof Error ? err.message : "Failed to upload SRT");
+                    } finally {
+                      setIsUploadingSrt(false);
+                      // Reset file input so the same file can be re-uploaded
+                      if (srtFileInputRef.current) srtFileInputRef.current.value = "";
+                    }
+                  }}
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => srtFileInputRef.current?.click()}
+                  disabled={isUploadingSrt}
+                  className="h-7 text-[10px] bg-white/[0.03] border-white/10 text-white/60 hover:bg-white/[0.06] hover:text-white"
+                >
+                  {isUploadingSrt ? (
+                    <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                  ) : (
+                    <Upload className="w-3 h-3 mr-1" />
+                  )}
+                  {isUploadingSrt ? "Parsing..." : "Upload File"}
+                </Button>
+              </div>
+              {srtUploadError && (
+                <p className="text-[10px] text-red-400">{srtUploadError}</p>
+              )}
+              {srtUploadSuccess && (
+                <p className="text-[10px] text-green-400 flex items-center gap-1">
+                  <Check className="w-3 h-3" /> SRT file parsed & captions updated
+                </p>
+              )}
+            </div>
+
+            {/* Caption Line Editor */}
+            <div className="space-y-2">
+              <Label className="text-xs text-white/50">Caption Lines</Label>
+              <CaptionLineEditor
+                captions={editCaptions}
+                onChange={setEditCaptions}
               />
               <p className="text-[10px] text-white/25">
-                Separate lines with | to auto-cycle during playback. Each line shows ~3 seconds.
+                Each line cycles during playback. Upload an SRT file or edit manually.
               </p>
             </div>
 
@@ -1761,12 +2080,89 @@ function ClipDetailPanel({
             </div>
             <Switch
               checked={editIsPublished}
-              onCheckedChange={(val) => { setEditIsPublished(val); onTogglePublish(val); }}
+              onCheckedChange={(val) => {
+                if (val) {
+                  // Show platform selection dialog when toggling ON
+                  setShowPlatformDialog(true);
+                } else {
+                  // When toggling OFF, unpublish directly
+                  setEditIsPublished(false);
+                  onTogglePublish(false);
+                }
+              }}
               className="data-[state=checked]:bg-pink-500"
             />
           </div>
 
+          {/* Share Panel — visible when clip is published */}
+          {editIsPublished && (
+            <SharePanel
+              shareData={shareData}
+              publishedTo={clip.publishedTo}
+            />
+          )}
+
           <Separator className="bg-white/5" />
+
+          {/* Platform Selection Dialog */}
+          <Dialog open={showPlatformDialog} onOpenChange={setShowPlatformDialog}>
+            <DialogContent className="bg-[#0d0d14] border-white/10 text-white max-w-[380px]">
+              <DialogHeader>
+                <DialogTitle className="text-white text-sm">Select Platforms</DialogTitle>
+                <DialogDescription className="text-white/40 text-xs">
+                  Choose which platforms to publish this clip to.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-2 py-2">
+                {SHARE_PLATFORMS.map((platform) => (
+                  <label
+                    key={platform.id}
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-white/5 bg-white/[0.02] hover:bg-white/[0.04] hover:border-white/10 transition-all cursor-pointer"
+                  >
+                    <Checkbox
+                      checked={selectedPlatforms.includes(platform.id)}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setSelectedPlatforms([...selectedPlatforms, platform.id]);
+                        } else {
+                          setSelectedPlatforms(selectedPlatforms.filter((p) => p !== platform.id));
+                        }
+                      }}
+                      className="border-white/20 data-[state=checked]:bg-pink-500 data-[state=checked]:border-pink-500"
+                    />
+                    <span
+                      className="w-2.5 h-2.5 rounded-full shrink-0"
+                      style={{ backgroundColor: platform.color }}
+                    />
+                    <span className="text-sm text-white/70">{platform.name}</span>
+                  </label>
+                ))}
+              </div>
+              <DialogFooter className="gap-2 sm:gap-0">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowPlatformDialog(false)}
+                  className="text-white/40 hover:text-white hover:bg-white/5 text-xs"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  disabled={selectedPlatforms.length === 0}
+                  onClick={() => {
+                    setEditIsPublished(true);
+                    onTogglePublish(true, selectedPlatforms);
+                    setShowPlatformDialog(false);
+                  }}
+                  className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white border-0 text-xs disabled:opacity-50"
+                >
+                  <Share2 className="w-3.5 h-3.5 mr-1" />
+                  Publish to {selectedPlatforms.length} platform{selectedPlatforms.length !== 1 ? "s" : ""}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
           {/* Action Buttons */}
           <div className="flex gap-2">
@@ -1786,6 +2182,14 @@ function ClipDetailPanel({
             >
               {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
             </Button>
+            <Button
+              onClick={onDownload}
+              disabled={isDownloading}
+              className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white border-0 shadow-lg shadow-pink-500/20"
+            >
+              {isDownloading ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Download className="w-4 h-4 mr-1.5" />}
+              {isDownloading ? "Processing..." : "Download"}
+            </Button>
           </div>
         </div>
       </ScrollArea>
@@ -1804,6 +2208,7 @@ export function ClipEditorSection() {
   const [templates, setTemplates] = useState<TemplateData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
+  const [downloadingClipId, setDownloadingClipId] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<"score" | "time" | "newest">("score");
   const [showDetailPanel, setShowDetailPanel] = useState(false);
 
@@ -1922,6 +2327,36 @@ export function ClipEditorSection() {
     }
   }, [clips, video?.title]);
 
+  const handleDownloadClip = useCallback(async (clipId: string) => {
+    if (!user?.id) return;
+    setDownloadingClipId(clipId);
+    try {
+      const res = await fetch(`/api/download/${clipId}?userId=${user.id}`, {
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to download clip");
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const clip = clips.find(c => c.id === clipId);
+      const safeTitle = (clip?.title || "clip").replace(/[^a-zA-Z0-9_-]/g, "_").substring(0, 50);
+      a.download = `${safeTitle}.mp4`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Failed to download clip:", err);
+      alert(err instanceof Error ? err.message : "Failed to download clip");
+    } finally {
+      setDownloadingClipId(null);
+    }
+  }, [user?.id, clips]);
+
   const handleClipClick = useCallback(
     (clipId: string) => {
       setActiveClipId(clipId);
@@ -1982,15 +2417,53 @@ export function ClipEditorSection() {
     }
   }, [activeClipId, user?.id, setActiveClipId, fetchClips]);
 
+  const [shareDataMap, setShareDataMap] = useState<Record<string, ShareData>>({});
+
   const handleTogglePublish = useCallback(
-    async (published: boolean) => {
-      if (!activeClipId) return;
+    async (published: boolean, platforms?: string[]) => {
+      if (!activeClipId || !user?.id) return;
       try {
+        // Update clip publish status locally
         await fetch(`/api/clips/${activeClipId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ isPublished: published, userId: user?.id }),
+          body: JSON.stringify({ isPublished: published, userId: user.id }),
         });
+
+        // If publishing, also generate share link via the share API
+        if (published) {
+          const selectedPlatforms = platforms && platforms.length > 0 ? platforms : ["all"];
+          const shareRes = await fetch("/api/share", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              clipId: activeClipId,
+              platforms: selectedPlatforms,
+              userId: user.id,
+            }),
+          });
+          if (shareRes.ok) {
+            const shareJson = await shareRes.json();
+            if (shareJson.success && shareJson.data) {
+              setShareDataMap((prev) => ({
+                ...prev,
+                [activeClipId]: {
+                  shareUrl: shareJson.data.shareUrl,
+                  shareLinks: shareJson.data.shareLinks || {},
+                  publishedPlatforms: shareJson.data.publishedPlatforms || selectedPlatforms,
+                },
+              }));
+            }
+          }
+        } else {
+          // When unpublishing, clear the share data for this clip
+          setShareDataMap((prev) => {
+            const next = { ...prev };
+            delete next[activeClipId];
+            return next;
+          });
+        }
+
         await fetchClips();
       } catch (err) {
         console.error("Failed to toggle publish:", err);
@@ -2139,6 +2612,7 @@ export function ClipEditorSection() {
               templates={templates}
               videoSource={videoSource}
               videoThumbnail={video?.thumbnailUrl || null}
+              isDownloading={downloadingClipId === selectedClip.id}
               onClose={() => {
                 setShowDetailPanel(false);
                 setActiveClipId(null);
@@ -2146,6 +2620,9 @@ export function ClipEditorSection() {
               onSave={handleSaveClip}
               onDelete={handleDeleteClip}
               onTogglePublish={handleTogglePublish}
+              onDownload={() => handleDownloadClip(selectedClip.id)}
+              userId={user?.id || ""}
+              shareData={shareDataMap[selectedClip.id] || null}
             />
           </>
         )}

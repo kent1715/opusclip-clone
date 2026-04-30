@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
 import ZAI from "z-ai-web-dev-sdk";
+import { updateProgress, completeProgress, errorProgress } from "@/lib/progress";
+import { transcribeVideo, isWhisperAvailable, type TranscriptionResult } from "@/lib/transcribe";
 
 // ─── Platform Detection ────────────────────────────────────────────────────
 
@@ -527,6 +529,7 @@ export async function POST(request: Request) {
     const clipLength = settings?.clipLength || "auto";
     const specificMoments = settings?.specificMoments || "";
     const autoHook = settings?.autoHook !== false;
+    const srtCaptions = settings?.srtCaptions || null;
 
     if (!url || typeof url !== "string") {
       return NextResponse.json(
@@ -576,13 +579,50 @@ export async function POST(request: Request) {
       },
     });
 
+    // Initialize progress tracking
+    updateProgress(video.id, 5, "initializing", "Starting video analysis...");
+
     // Step 1: Fetch video metadata using multiple strategies
+    updateProgress(video.id, 10, "fetching-metadata", "Fetching video metadata...");
     const videoMeta = await fetchVideoMetadata(url, platform, videoId);
 
     let videoTitle = videoMeta.title;
     let videoThumbnail = videoMeta.thumbnailUrl;
 
-    // Step 2: Use LLM with video content to generate clips
+    // Step 1.5: Transcribe audio if available (and no SRT provided)
+    let transcription: TranscriptionResult | null = null;
+    const speechLanguage = settings?.speechLanguage || "auto";
+
+    if (!srtCaptions) {
+      updateProgress(video.id, 20, "transcribing", "Transcribing audio with AI...");
+      try {
+        const whisperReady = await isWhisperAvailable();
+        if (whisperReady || true) { // Always try - has fallback
+          transcription = await transcribeVideo(
+            url,
+            speechLanguage,
+            (stage, message) => {
+              updateProgress(video.id, 25, stage, message);
+            }
+          );
+        }
+
+        if (transcription) {
+          updateProgress(video.id, 35, "transcribed", `Transcription complete: ${transcription.segmentCount} segments in ${transcription.language}`);
+        } else {
+          updateProgress(video.id, 35, "transcription-skipped", "Transcription unavailable, using metadata analysis...");
+        }
+      } catch (transcriptionError) {
+        console.error("Transcription error (non-fatal):", transcriptionError);
+        updateProgress(video.id, 35, "transcription-skipped", "Transcription unavailable, using metadata analysis...");
+      }
+    } else {
+      updateProgress(video.id, 35, "srt-loaded", "Using provided SRT captions...");
+    }
+
+    updateProgress(video.id, 40, "analyzing-content", "Analyzing video content with AI...");
+
+    // Step 2: Use LLM with video content + transcription to generate clips
     let clipsData: Array<{
       title: string;
       startTime: string;
@@ -613,7 +653,19 @@ export async function POST(request: Request) {
         contextSection += `Platform: ${platform}\n`;
       }
 
-      const hasContent = contextSection.length > 0;
+      // Include transcription data for much better clip suggestions
+      let transcriptionSection = "";
+      if (transcription) {
+        transcriptionSection = `\n=== FULL TRANSCRIPT ===\nLanguage: ${transcription.language}\nDuration: ${transcription.duration.toFixed(1)} seconds\n\n`;
+        transcriptionSection += transcription.segments.map((seg, i) => {
+          const startMins = Math.floor(seg.start / 60);
+          const startSecs = Math.floor(seg.start % 60);
+          return `[${startMins}:${startSecs.toString().padStart(2, "0")}] ${seg.text}`;
+        }).join("\n");
+        transcriptionSection += "\n=== END TRANSCRIPT ===\n";
+      }
+
+      const hasContent = contextSection.length > 0 || transcriptionSection.length > 0;
 
       // Build genre-specific instructions
       let genreInstruction = "";
@@ -636,14 +688,18 @@ export async function POST(request: Request) {
         momentsInstruction = `\nUser is specifically looking for: "${specificMoments}". Prioritize finding moments that match this request.`;
       }
 
+      const transcriptNote = transcription
+        ? `\n6. A FULL TRANSCRIPT is provided below. USE IT to identify the best moments, key quotes, and engaging segments. Your clip timestamps MUST correspond to the transcript timestamps.\n7. When you reference a moment from the transcript, the startTime MUST match the actual timestamp from the transcript.\n8. The captions for each clip should use ACTUAL SPOKEN WORDS from the transcript at those timestamps, not generic filler text.`
+        : "";
+
       const systemPrompt = `You are an expert viral content analyst specializing in creating short-form video clips from long-form content. You analyze videos and generate clip suggestions that would perform well on social media (TikTok, Instagram Reels, YouTube Shorts).
 
-Given video information, generate 5 short clip suggestions. Each clip should:
+Given video information${transcription ? ", including a full transcript" : ""}, generate 5 short clip suggestions. Each clip should:
 - Have a compelling, scroll-stopping title that references the SPECIFIC video content
-- Include realistic timestamps and durations (clips should be 15-60 seconds)
+- Include realistic timestamps and durations (clips should be 15-60 seconds)${transcription ? " — timestamps MUST align with the transcript" : ""}
 - Have a virality score from 60-99 (higher = more likely to go viral)
 - Include 2-4 relevant tags based on the video's actual topic
-- Include engaging caption text (pipe-separated lines, 2-4 lines)${genreInstruction}${momentsInstruction}
+- Include engaging caption text (pipe-separated lines, 2-4 lines)${transcription ? " — use ACTUAL words spoken in the video at those timestamps" : ""}${genreInstruction}${momentsInstruction}
 
 Return ONLY valid JSON in this exact format:
 {
@@ -661,14 +717,14 @@ Return ONLY valid JSON in this exact format:
 }
 
 CRITICAL RULES:
-1. Generate clips that are SPECIFIC to the video content. Reference the actual topic, people, or events mentioned in the title/description.
+1. Generate clips that are SPECIFIC to the video content. Reference the actual topic, people, or events mentioned in the title/description/transcript.
 2. Do NOT use generic titles like "This Moment Changed Everything" or "Stop Scrolling" — always reference specific content from the video.
 3. The clip titles should make someone want to watch based on the video's specific content.
 4. If you have the video title and description, USE them to create relevant clips.
-5. Each clip title MUST reference something specific about THIS video (the topic, people, key phrases, etc.).`;
+5. Each clip title MUST reference something specific about THIS video (the topic, people, key phrases, etc.).${transcriptNote}`;
 
       const userPrompt = hasContent
-        ? `Analyze this video and generate 5 viral clip suggestions based on the actual content:\n\nSource URL: ${url}\n\n${contextSection}`
+        ? `Analyze this video and generate 5 viral clip suggestions based on the actual content:\n\nSource URL: ${url}\n\n${contextSection}${transcriptionSection}`
         : `Analyze this video URL and generate 5 viral clip suggestions. Try to infer the video topic from the URL structure:\n\nURL: ${url}\nPlatform: ${platform}`;
 
       const completion = await zai.chat.completions.create({
@@ -684,6 +740,8 @@ CRITICAL RULES:
         ],
         thinking: { type: "disabled" },
       });
+
+      updateProgress(video.id, 60, "generating-clips", "AI is generating viral clip suggestions...");
 
       // Extract the response content
       const responseContent =
@@ -726,6 +784,7 @@ CRITICAL RULES:
     }
 
     // If AI didn't produce clips, generate fallback based on video title
+    updateProgress(video.id, 75, "saving-clips", "Saving generated clips...");
     if (clipsData.length === 0) {
       clipsData = generateContextualFallbackClips(
         videoTitle || extractTitleFromUrl(url, platform),
@@ -736,6 +795,7 @@ CRITICAL RULES:
 
     // Always create clips
     try {
+      updateProgress(video.id, 85, "creating-records", "Creating clip records in database...");
       const clipRecords = await Promise.all(
         clipsData.map((clip) =>
           db.clip.create({
@@ -745,7 +805,7 @@ CRITICAL RULES:
               startTime: clip.startTime || "0:00",
               duration: clip.duration || "0:30",
               viralityScore: clip.viralityScore || 0,
-              captions: clip.captions || null,
+              captions: srtCaptions || transcription?.captions || clip.captions || null,
               captionStyle,
               captionFont,
               captionAnimation,
@@ -766,6 +826,9 @@ CRITICAL RULES:
           status: "completed",
           title: videoTitle || extractTitleFromUrl(url, platform),
           thumbnailUrl: videoThumbnail,
+          duration: transcription?.duration
+            ? `${Math.floor(transcription.duration / 60)}:${Math.floor(transcription.duration % 60).toString().padStart(2, "0")}`
+            : undefined,
         },
         include: { clips: true },
       });
@@ -774,6 +837,12 @@ CRITICAL RULES:
       await db.user.update({
         where: { id: userId },
         data: { clipsUsed: { increment: clipRecords.length } },
+      });
+
+      // Mark progress as completed
+      completeProgress(video.id, {
+        videoId: video.id,
+        clipCount: clipRecords.length,
       });
 
       return NextResponse.json({
@@ -786,6 +855,7 @@ CRITICAL RULES:
           where: { id: video.id },
           data: { status: "failed" },
         });
+        errorProgress(video.id, "Failed to save clips");
       } catch {}
 
       console.error("Database error creating clips:", dbError);
@@ -796,6 +866,11 @@ CRITICAL RULES:
     }
   } catch (error) {
     console.error("Error processing video:", error);
+    // Try to mark progress as error if we have a videoId
+    try {
+      const body = await request.clone().json().catch(() => ({}));
+      // We can't easily get videoId here since it's created inside the try
+    } catch {}
     return NextResponse.json(
       { error: "Failed to process video" },
       { status: 500 }

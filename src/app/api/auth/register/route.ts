@@ -1,20 +1,44 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import crypto from 'crypto'
+import bcrypt from 'bcryptjs'
 import { SESSION_COOKIE } from '@/lib/auth'
+import {
+  checkRegisterRateLimit,
+  recordRegisterAttempt,
+  getClientIp,
+  validatePasswordStrength,
+  sanitizeEmail,
+  sanitizeInput,
+} from '@/lib/auth-security'
 
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { email, name, password } = body
+    const rawEmail = body.email
+    const rawName = body.name
+    const rawPassword = body.password
+
+    // Rate limit check
+    const ip = getClientIp(request)
+    const rateLimit = checkRegisterRateLimit(ip)
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: 'Too many registration attempts. Please try again later.' },
+        { status: 429 }
+      )
+    }
 
     // Validate required fields
-    if (!email || !password) {
+    if (!rawEmail || !rawPassword) {
       return NextResponse.json(
         { error: 'Email and password are required' },
         { status: 400 }
       )
     }
+
+    // Sanitize inputs
+    const email = sanitizeEmail(rawEmail)
+    const name = rawName ? sanitizeInput(rawName, 100) : null
 
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -25,10 +49,14 @@ export async function POST(request: Request) {
       )
     }
 
-    // Validate password length
-    if (password.length < 6) {
+    // Validate password strength
+    const passwordCheck = validatePasswordStrength(rawPassword)
+    if (!passwordCheck.valid) {
       return NextResponse.json(
-        { error: 'Password must be at least 6 characters' },
+        {
+          error: passwordCheck.errors.join('. '),
+          strength: passwordCheck.strength,
+        },
         { status: 400 }
       )
     }
@@ -45,17 +73,14 @@ export async function POST(request: Request) {
       )
     }
 
-    // Hash password with SHA-256
-    const hashedPassword = crypto
-      .createHash('sha256')
-      .update(password)
-      .digest('hex')
+    // Hash password with bcrypt (salt rounds: 12)
+    const hashedPassword = await bcrypt.hash(rawPassword, 12)
 
     // Create user in database
     const user = await db.user.create({
       data: {
         email,
-        name: name || null,
+        name,
         password: hashedPassword,
         role: 'user',
         plan: 'free',
@@ -63,6 +88,9 @@ export async function POST(request: Request) {
         clipsUsed: 0,
       },
     })
+
+    // Record registration attempt
+    recordRegisterAttempt(ip)
 
     // Return user object without password
     const { password: _, ...userWithoutPassword } = user

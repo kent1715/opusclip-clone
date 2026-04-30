@@ -60,64 +60,50 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { CAPTION_PRESETS as BASE_CAPTION_PRESETS, FONT_OPTIONS, ANIMATION_OPTIONS, COLOR_OPTIONS } from "@/lib/constants";
 
-// ─── Caption Style Presets ────────────────────────────────────────────────
+// Extended presets with visual rendering properties for the processing page
+const CAPTION_PRESETS = BASE_CAPTION_PRESETS.map(preset => ({
+  ...preset,
+  bgColor: preset.id === "karaoke" ? "from-green-600 to-green-500" :
+           preset.id === "deep-diver" ? "from-blue-800 to-blue-600" :
+           preset.id === "pod-p" ? "from-pink-600 to-purple-600" :
+           preset.id === "popline" ? "from-gray-900 to-gray-800" :
+           preset.id === "seamless-bounce" ? "from-green-600 to-emerald-500" :
+           preset.id === "gradient-wave" ? "from-cyan-600 to-blue-500" :
+           preset.id === "beasty" ? "from-gray-900 to-gray-800" :
+           preset.id === "youshaei" ? "from-teal-700 to-gray-800" :
+           preset.id === "mozi" ? "from-green-700 to-green-500" :
+           preset.id === "glitch-infinite" ? "from-orange-700 to-red-600" :
+           preset.id === "baby-earthquake" ? "from-amber-800 to-amber-600" :
+           preset.id === "neon-pulse" ? "from-fuchsia-700 to-purple-600" :
+           "from-gray-800 to-gray-700",
+  previewText: preset.uppercase ? "TO GET STARTED" : "To get started",
+  highlight: preset.highlight ? "TO" : null,
+  highlightColor: preset.highlight ? preset.textColor : null,
+  isNew: ["seamless-bounce", "glitch-infinite", "baby-earthquake"].includes(preset.id),
+}));
 
-const CAPTION_PRESETS = [
-  { id: "karaoke", name: "Karaoke", textColor: "#4ade80", bgColor: "from-green-600 to-green-500", previewText: "TO GET STARTED", highlight: "TO", highlightColor: "#4ade80" },
-  { id: "deep-diver", name: "Deep Diver", textColor: "#94a3b8", bgColor: "from-blue-800 to-blue-600", previewText: "To get started", highlight: null, highlightColor: null },
-  { id: "pod-p", name: "Pod P", textColor: "#f472b6", bgColor: "from-pink-600 to-purple-600", previewText: "TO GET STARTED", highlight: null, highlightColor: null },
-  { id: "popline", name: "Popline", textColor: "#ffffff", bgColor: "from-gray-900 to-gray-800", previewText: "TO GET STARTED", highlight: null, highlightColor: null, outline: true },
-  { id: "seamless-bounce", name: "Seamless Bounce", textColor: "#4ade80", bgColor: "from-green-600 to-emerald-500", previewText: "To get started", highlight: null, highlightColor: null, isNew: true },
-  { id: "gradient-wave", name: "Gradient Wave", textColor: "#67e8f9", bgColor: "from-cyan-600 to-blue-500", previewText: "TO GET STARTED", highlight: null, highlightColor: null },
-  { id: "beasty", name: "Beasty", textColor: "#d1d5db", bgColor: "from-gray-900 to-gray-800", previewText: "TO GET STARTED", highlight: null, highlightColor: null },
-  { id: "youshaei", name: "Youshaei", textColor: "#5eead4", bgColor: "from-teal-700 to-gray-800", previewText: "TO GET STARTED", highlight: "TO", highlightColor: "#5eead4" },
-  { id: "mozi", name: "Mozi", textColor: "#86efac", bgColor: "from-green-700 to-green-500", previewText: "TO GET STARTED", highlight: null, highlightColor: null },
-  { id: "glitch-infinite", name: "Glitch Infinite", textColor: "#fb923c", bgColor: "from-orange-700 to-red-600", previewText: "To get started", highlight: null, highlightColor: null, isNew: true },
-  { id: "baby-earthquake", name: "Baby Earthquake", textColor: "#fde68a", bgColor: "from-amber-800 to-amber-600", previewText: "to get started", highlight: null, highlightColor: null, isNew: true },
-  { id: "neon-pulse", name: "Neon Pulse", textColor: "#e879f9", bgColor: "from-fuchsia-700 to-purple-600", previewText: "TO GET STARTED", highlight: null, highlightColor: null },
-];
-
-// ─── Font Options ────────────────────────────────────────────────────────
-
-const FONT_OPTIONS = [
-  { id: "inter", name: "Inter", family: "'Inter', sans-serif" },
-  { id: "montserrat", name: "Montserrat", family: "'Montserrat', sans-serif" },
-  { id: "poppins", name: "Poppins", family: "'Poppins', sans-serif" },
-  { id: "roboto", name: "Roboto", family: "'Roboto', sans-serif" },
-  { id: "oswald", name: "Oswald", family: "'Oswald', sans-serif" },
-  { id: "bebas", name: "Bebas Neue", family: "'Bebas Neue', sans-serif" },
-  { id: "permanent", name: "Permanent Marker", family: "'Permanent Marker', cursive" },
-  { id: "source-code", name: "Source Code Pro", family: "'Source Code Pro', monospace" },
-];
-
-// ─── Animation Options ──────────────────────────────────────────────────
-
-const ANIMATION_OPTIONS = [
-  { id: "none", name: "None", icon: Type, description: "Static text" },
-  { id: "bounce", name: "Bounce", icon: ArrowUpFromLine, description: "Bouncing text" },
-  { id: "wave", name: "Wave", icon: Waves, description: "Wave motion" },
-  { id: "fade", name: "Fade In", icon: Eye, description: "Fade in/out" },
-  { id: "slide-up", name: "Slide Up", icon: MoveUp, description: "Slide from below" },
-  { id: "glitch", name: "Glitch", icon: RefreshCw, description: "Glitch effect" },
-  { id: "karaoke", name: "Karaoke", icon: Highlighter, description: "Word highlight" },
-  { id: "rotate", name: "Rotate", icon: RotateCcw, description: "Rotating text" },
-];
-
-// ─── Color Options ──────────────────────────────────────────────────────
-
-const COLOR_OPTIONS = [
-  { id: "white", name: "White", value: "#ffffff" },
-  { id: "yellow", name: "Yellow", value: "#fde047" },
-  { id: "green", name: "Green", value: "#4ade80" },
-  { id: "cyan", name: "Cyan", value: "#67e8f9" },
-  { id: "blue", name: "Blue", value: "#60a5fa" },
-  { id: "purple", name: "Purple", value: "#c084fc" },
-  { id: "pink", name: "Pink", value: "#f472b6" },
-  { id: "red", name: "Red", value: "#f87171" },
-  { id: "orange", name: "Orange", value: "#fb923c" },
-  { id: "black", name: "Black", value: "#000000" },
-];
+// Extended animation options with icons for the processing page
+const ANIMATION_OPTIONS_WITH_ICONS = ANIMATION_OPTIONS.map(opt => ({
+  ...opt,
+  icon: opt.id === "none" ? Type :
+        opt.id === "bounce" ? ArrowUpFromLine :
+        opt.id === "wave" ? Waves :
+        opt.id === "fade" ? Eye :
+        opt.id === "slide-up" ? MoveUp :
+        opt.id === "glitch" ? RefreshCw :
+        opt.id === "karaoke" ? Highlighter :
+        opt.id === "rotate" ? RotateCcw : Type,
+  description: opt.id === "none" ? "Static text" :
+               opt.id === "bounce" ? "Bouncing text" :
+               opt.id === "wave" ? "Wave motion" :
+               opt.id === "fade" ? "Fade in/out" :
+               opt.id === "slide-up" ? "Slide from below" :
+               opt.id === "glitch" ? "Glitch effect" :
+               opt.id === "karaoke" ? "Word highlight" :
+               opt.id === "rotate" ? "Rotating text" : "",
+}))
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
@@ -167,6 +153,25 @@ export function ProcessingSection() {
   const [captionPosition, setCaptionPosition] = useState<"bottom" | "center" | "top">("bottom");
   const [showCaptionCustomizer, setShowCaptionCustomizer] = useState(false);
 
+  // File upload state
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  // SSE progress state
+  const [progressPercentage, setProgressPercentage] = useState(0);
+  const [progressStage, setProgressStage] = useState("");
+  const [progressMessage, setProgressMessage] = useState("");
+  const [activeVideoId, setActiveVideoIdLocal] = useState<string | null>(null);
+
+  // Transcription toggle
+  const [enableTranscription, setEnableTranscription] = useState(true);
+
+  // SRT file state
+  const [srtFile, setSrtFile] = useState<File | null>(null);
+  const [srtCaptions, setSrtCaptions] = useState<string | null>(null);
+  const [srtFileName, setSrtFileName] = useState<string>("");
+
   // Fetch video preview when URL changes
   useEffect(() => {
     if (!url.trim()) {
@@ -194,21 +199,133 @@ export function ProcessingSection() {
     return () => clearTimeout(timer);
   }, [url]);
 
+  // ─── File Upload Handler ──────────────────────────────────────────────────
+
+  const fileInputRef = useState<HTMLInputElement | null>(null)[0];
+  const fileInputRefCallback = useCallback((node: HTMLInputElement | null) => {
+    // Store ref for programmatic click
+    (window as unknown as Record<string, unknown>).__fileInputRef = node;
+  }, []);
+
+  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith("video/") && !file.name.match(/\.(mp4|mov|avi|mkv|webm|flv|wmv|m4v)$/i)) {
+      setUploadError("Please select a valid video file (MP4, MOV, AVI, etc.)");
+      return;
+    }
+
+    // Validate file size (500MB)
+    if (file.size > 500 * 1024 * 1024) {
+      setUploadError("File too large. Maximum size: 500MB");
+      return;
+    }
+
+    setUploadedFile(file);
+    setUrl(""); // Clear URL when file is selected
+    setUploadError(null);
+  }, []);
+
+  const handleRemoveFile = useCallback(() => {
+    setUploadedFile(null);
+    setUploadError(null);
+  }, []);
+
+  const srtInputRefCallback = useCallback((node: HTMLInputElement | null) => {
+    (window as unknown as Record<string, unknown>).__srtInputRef = node;
+  }, []);
+
+  const handleSrtSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.name.match(/\.(srt|vtt)$/i)) {
+      setUploadError("Please select a valid SRT or VTT subtitle file");
+      return;
+    }
+
+    setSrtFile(file);
+    setSrtFileName(file.name);
+    setUploadError(null);
+
+    // Upload and parse SRT via API
+    if (user?.id) {
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+        const res = await fetch(`/api/srt?userId=${user.id}`, {
+          method: "POST",
+          body: formData,
+          credentials: "include",
+        });
+        const data = await res.json();
+        if (res.ok && data.data?.captions) {
+          setSrtCaptions(data.data.captions);
+        }
+      } catch {
+        // SRT parsing failed, but we still show the file name
+      }
+    }
+  }, [user?.id]);
+
+  const handleRemoveSrt = useCallback(() => {
+    setSrtFile(null);
+    setSrtCaptions(null);
+    setSrtFileName("");
+  }, []);
+
   // ─── Process Handler ──────────────────────────────────────────────────────
 
   const handleProcess = useCallback(async () => {
-    if (!url.trim() || !user?.id) return;
+    if ((!url.trim() && !uploadedFile) || !user?.id) return;
 
     setIsProcessing(true);
     setProcessError(null);
+    setProgressPercentage(0);
+    setProgressStage("starting");
+    setProgressMessage("Preparing to process...");
+    setActiveVideoIdLocal(null);
 
     try {
-      const res = await fetch("/api/process", {
+      let processingUrl = url.trim();
+
+      // If a file was uploaded, upload it first
+      if (uploadedFile) {
+        setIsUploading(true);
+        setProgressMessage("Uploading video file...");
+        setProgressPercentage(5);
+
+        const formData = new FormData();
+        formData.append("file", uploadedFile);
+
+        const uploadRes = await fetch(`/api/upload?userId=${user.id}`, {
+          method: "POST",
+          body: formData,
+          credentials: "include",
+        });
+
+        const uploadData = await uploadRes.json();
+
+        if (!uploadRes.ok) {
+          throw new Error(uploadData.error || "Failed to upload file");
+        }
+
+        processingUrl = uploadData.data.url;
+        setIsUploading(false);
+        setProgressMessage("File uploaded, starting AI analysis...");
+        setProgressPercentage(15);
+      }
+
+      // Start processing (fire and forget - we'll track via SSE)
+      const processPromise = fetch("/api/process", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
-          url: url.trim(),
+          url: processingUrl,
           userId: user.id,
           settings: {
             clipModel,
@@ -218,7 +335,7 @@ export function ProcessingSection() {
             specificMoments: specificMoments || undefined,
             timeframeStart,
             timeframeEnd,
-            speechLanguage,
+            speechLanguage: enableTranscription ? speechLanguage : "none",
             captionStyle: selectedCaption,
             aspectRatio,
             captionFont: selectedFont,
@@ -226,9 +343,21 @@ export function ProcessingSection() {
             captionColor: selectedColor,
             captionSize,
             captionPosition,
+            srtCaptions: srtCaptions || undefined,
           },
         }),
       });
+
+      // Start simulated progress while waiting for the first SSE event
+      const progressInterval = setInterval(() => {
+        setProgressPercentage(prev => {
+          if (prev >= 90) return prev;
+          return Math.min(90, prev + Math.random() * 2 + 0.3);
+        });
+      }, 1000);
+
+      const res = await processPromise;
+      clearInterval(progressInterval);
 
       const data = await res.json();
 
@@ -238,6 +367,8 @@ export function ProcessingSection() {
 
       // Navigate to editor with the video
       if (data.data?.id) {
+        setProgressPercentage(100);
+        setProgressMessage("Complete!");
         setActiveVideoId(data.data.id);
         setCurrentView("editor");
       }
@@ -248,7 +379,30 @@ export function ProcessingSection() {
     } finally {
       setIsProcessing(false);
     }
-  }, [url, user?.id, clipModel, genre, clipLength, autoHook, specificMoments, timeframeStart, timeframeEnd, speechLanguage, selectedCaption, aspectRatio, selectedFont, selectedAnimation, selectedColor, captionSize, captionPosition, setActiveVideoId, setCurrentView]);
+  }, [url, uploadedFile, user?.id, clipModel, genre, clipLength, autoHook, specificMoments, timeframeStart, timeframeEnd, speechLanguage, enableTranscription, selectedCaption, aspectRatio, selectedFont, selectedAnimation, selectedColor, captionSize, captionPosition, srtCaptions, setActiveVideoId, setCurrentView]);
+
+  // SSE progress tracking during processing
+  useEffect(() => {
+    if (!isProcessing) {
+      setProgressPercentage(0);
+      setProgressStage("");
+      setProgressMessage("");
+      return;
+    }
+
+    // Simulate progress for now (SSE will be connected once we have a videoId)
+    // The actual SSE connection will be established after the process API returns
+    // a videoId. For now, show animated progress.
+    const interval = setInterval(() => {
+      setProgressPercentage(prev => {
+        if (prev >= 95) return prev; // Cap at 95% until complete
+        const increment = Math.random() * 3 + 0.5;
+        return Math.min(95, prev + increment);
+      });
+    }, 800);
+
+    return () => clearInterval(interval);
+  }, [isProcessing]);
 
   const handleRemoveUrl = useCallback(() => {
     setUrl("");
@@ -261,7 +415,7 @@ export function ProcessingSection() {
 
   // Current caption preview style
   const currentFont = FONT_OPTIONS.find(f => f.id === selectedFont) || FONT_OPTIONS[0];
-  const currentAnimation = ANIMATION_OPTIONS.find(a => a.id === selectedAnimation) || ANIMATION_OPTIONS[0];
+  const currentAnimation = ANIMATION_OPTIONS_WITH_ICONS.find(a => a.id === selectedAnimation) || ANIMATION_OPTIONS_WITH_ICONS[0];
   const currentColor = COLOR_OPTIONS.find(c => c.id === selectedColor) || COLOR_OPTIONS[0];
 
   // ─── Render ──────────────────────────────────────────────────────────────
@@ -302,41 +456,98 @@ export function ProcessingSection() {
           animate={{ opacity: 1, y: 0 }}
           className="space-y-4"
         >
-          {/* URL Input with Remove */}
-          <div className="relative flex items-center gap-2 bg-[#1a1a2e] border border-white/10 rounded-xl px-4 py-3 focus-within:border-pink-500/30 transition-colors">
-            <Film className="w-4 h-4 text-white/20 shrink-0" />
-            <input
-              type="text"
-              placeholder="Paste a YouTube, TikTok, or Vimeo link..."
-              value={url}
-              onChange={(e) => {
-                setUrl(e.target.value);
-                setPendingUrl(e.target.value);
-              }}
-              className="flex-1 bg-transparent text-white/90 placeholder:text-white/25 outline-none text-sm"
-              disabled={isProcessing}
-            />
-            {url && (
+          {/* URL Input or File Upload */}
+          {uploadedFile ? (
+            /* Uploaded file display */
+            <div className="relative flex items-center gap-3 bg-[#1a1a2e] border border-green-500/20 rounded-xl px-4 py-3">
+              <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center shrink-0">
+                <Film className="w-5 h-5 text-green-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-white/90 truncate">{uploadedFile.name}</p>
+                <p className="text-xs text-white/40">
+                  {(uploadedFile.size / (1024 * 1024)).toFixed(1)} MB — Ready to process
+                </p>
+              </div>
+              {!isProcessing && (
+                <button
+                  onClick={handleRemoveFile}
+                  className="text-white/30 hover:text-white/60 transition-colors shrink-0"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          ) : (
+            /* URL Input with Remove */
+            <div className="relative flex items-center gap-2 bg-[#1a1a2e] border border-white/10 rounded-xl px-4 py-3 focus-within:border-pink-500/30 transition-colors">
+              <Film className="w-4 h-4 text-white/20 shrink-0" />
+              <input
+                type="text"
+                placeholder="Paste a YouTube, TikTok, or Vimeo link..."
+                value={url}
+                onChange={(e) => {
+                  setUrl(e.target.value);
+                  setPendingUrl(e.target.value);
+                }}
+                className="flex-1 bg-transparent text-white/90 placeholder:text-white/25 outline-none text-sm"
+                disabled={isProcessing}
+              />
+              {url && (
+                <button
+                  onClick={handleRemoveUrl}
+                  className="text-white/30 hover:text-white/60 transition-colors shrink-0"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Hidden file input */}
+          <input
+            ref={fileInputRefCallback}
+            type="file"
+            accept="video/*,.mp4,.mov,.avi,.mkv,.webm,.flv,.wmv,.m4v"
+            className="hidden"
+            onChange={handleFileSelect}
+          />
+
+          {/* Hidden SRT input */}
+          <input
+            ref={srtInputRefCallback}
+            type="file"
+            accept=".srt,.vtt"
+            className="hidden"
+            onChange={handleSrtSelect}
+          />
+
+          {/* SRT file indicator */}
+          {srtFile && (
+            <div className="flex items-center gap-2 bg-[#1a1a2e] border border-cyan-500/20 rounded-lg px-3 py-2">
+              <span className="text-xs text-cyan-400">SRT:</span>
+              <span className="text-xs text-white/60 truncate max-w-[200px]">{srtFileName}</span>
+              {srtCaptions && <span className="text-[10px] text-green-400">✓ Parsed</span>}
               <button
-                onClick={handleRemoveUrl}
-                className="text-white/30 hover:text-white/60 transition-colors shrink-0"
+                onClick={handleRemoveSrt}
+                className="text-white/30 hover:text-white/60 transition-colors ml-auto"
               >
-                <X className="w-4 h-4" />
+                <X className="w-3 h-3" />
               </button>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Get Clips Button */}
           <Button
             size="lg"
             onClick={handleProcess}
-            disabled={isProcessing || !url.trim()}
+            disabled={isProcessing || (!url.trim() && !uploadedFile)}
             className="w-full h-12 bg-white text-black hover:bg-gray-100 border-0 rounded-xl font-semibold text-base shadow-lg disabled:opacity-50 transition-all"
           >
             {isProcessing ? (
               <>
                 <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                Processing...
+                {isUploading ? "Uploading..." : progressMessage || "Processing..."}
               </>
             ) : (
               <>
@@ -346,32 +557,78 @@ export function ProcessingSection() {
             )}
           </Button>
 
+          {/* Progress Bar */}
+          {isProcessing && (
+            <div className="space-y-1.5">
+              <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+                <motion.div
+                  className="h-full bg-gradient-to-r from-pink-500 to-purple-500 rounded-full"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${progressPercentage}%` }}
+                  transition={{ duration: 0.5, ease: "easeOut" }}
+                />
+              </div>
+              <div className="flex justify-between text-[10px] text-white/25">
+                <span>{progressStage === "transcribing" ? "🎙️ Transcribing audio..." : progressStage === "analyzing-content" ? "🤖 AI analyzing..." : "Processing..."}</span>
+                <span>{Math.round(progressPercentage)}%</span>
+              </div>
+            </div>
+          )}
+
           {/* Speech Language & Credit Row */}
           <div className="flex flex-wrap items-center gap-4 text-sm">
             <div className="flex items-center gap-2">
-              <span className="text-white/40">Speech language:</span>
-              <Select value={speechLanguage} onValueChange={setSpeechLanguage}>
-                <SelectTrigger className="h-7 w-auto min-w-[120px] bg-transparent border-0 text-white/70 text-xs p-0 gap-1 hover:text-white focus:ring-0">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-[#1a1a2e] border-white/10">
-                  <SelectItem value="auto" className="text-white/80 focus:bg-white/10 focus:text-white text-xs">Auto Detect</SelectItem>
-                  <SelectItem value="en" className="text-white/80 focus:bg-white/10 focus:text-white text-xs">English</SelectItem>
-                  <SelectItem value="id" className="text-white/80 focus:bg-white/10 focus:text-white text-xs">Indonesian</SelectItem>
-                  <SelectItem value="es" className="text-white/80 focus:bg-white/10 focus:text-white text-xs">Spanish</SelectItem>
-                  <SelectItem value="fr" className="text-white/80 focus:bg-white/10 focus:text-white text-xs">French</SelectItem>
-                  <SelectItem value="de" className="text-white/80 focus:bg-white/10 focus:text-white text-xs">German</SelectItem>
-                  <SelectItem value="ja" className="text-white/80 focus:bg-white/10 focus:text-white text-xs">Japanese</SelectItem>
-                  <SelectItem value="ko" className="text-white/80 focus:bg-white/10 focus:text-white text-xs">Korean</SelectItem>
-                  <SelectItem value="zh" className="text-white/80 focus:bg-white/10 focus:text-white text-xs">Chinese</SelectItem>
-                  <SelectItem value="pt" className="text-white/80 focus:bg-white/10 focus:text-white text-xs">Portuguese</SelectItem>
-                  <SelectItem value="ar" className="text-white/80 focus:bg-white/10 focus:text-white text-xs">Arabic</SelectItem>
-                  <SelectItem value="hi" className="text-white/80 focus:bg-white/10 focus:text-white text-xs">Hindi</SelectItem>
-                </SelectContent>
-              </Select>
+              <Switch
+                checked={enableTranscription}
+                onCheckedChange={setEnableTranscription}
+                className="data-[state=checked]:bg-cyan-500 data-[state=unchecked]:bg-white/10 scale-75"
+              />
+              <span className="text-white/40 text-xs">Transcribe audio</span>
             </div>
 
-            <button className="flex items-center gap-1.5 text-white/30 hover:text-white/50 transition-colors text-xs">
+            {enableTranscription && (
+              <div className="flex items-center gap-2">
+                <span className="text-white/40">Speech language:</span>
+                <Select value={speechLanguage} onValueChange={setSpeechLanguage}>
+                  <SelectTrigger className="h-7 w-auto min-w-[120px] bg-transparent border-0 text-white/70 text-xs p-0 gap-1 hover:text-white focus:ring-0">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#1a1a2e] border-white/10">
+                    <SelectItem value="auto" className="text-white/80 focus:bg-white/10 focus:text-white text-xs">Auto Detect</SelectItem>
+                    <SelectItem value="en" className="text-white/80 focus:bg-white/10 focus:text-white text-xs">English</SelectItem>
+                    <SelectItem value="id" className="text-white/80 focus:bg-white/10 focus:text-white text-xs">Indonesian</SelectItem>
+                    <SelectItem value="es" className="text-white/80 focus:bg-white/10 focus:text-white text-xs">Spanish</SelectItem>
+                    <SelectItem value="fr" className="text-white/80 focus:bg-white/10 focus:text-white text-xs">French</SelectItem>
+                    <SelectItem value="de" className="text-white/80 focus:bg-white/10 focus:text-white text-xs">German</SelectItem>
+                    <SelectItem value="ja" className="text-white/80 focus:bg-white/10 focus:text-white text-xs">Japanese</SelectItem>
+                    <SelectItem value="ko" className="text-white/80 focus:bg-white/10 focus:text-white text-xs">Korean</SelectItem>
+                    <SelectItem value="zh" className="text-white/80 focus:bg-white/10 focus:text-white text-xs">Chinese</SelectItem>
+                    <SelectItem value="pt" className="text-white/80 focus:bg-white/10 focus:text-white text-xs">Portuguese</SelectItem>
+                    <SelectItem value="ar" className="text-white/80 focus:bg-white/10 focus:text-white text-xs">Arabic</SelectItem>
+                    <SelectItem value="hi" className="text-white/80 focus:bg-white/10 focus:text-white text-xs">Hindi</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            <button
+              onClick={() => {
+                const ref = (window as unknown as Record<string, unknown>).__fileInputRef as HTMLInputElement | null;
+                ref?.click();
+              }}
+              className="flex items-center gap-1.5 text-white/30 hover:text-white/50 transition-colors text-xs"
+            >
+              <Upload className="w-3.5 h-3.5" />
+              Upload video file
+            </button>
+
+            <button
+              onClick={() => {
+                const ref = (window as unknown as Record<string, unknown>).__srtInputRef as HTMLInputElement | null;
+                ref?.click();
+              }}
+              className="flex items-center gap-1.5 text-white/30 hover:text-white/50 transition-colors text-xs"
+            >
               <Upload className="w-3.5 h-3.5" />
               Upload .SRT (optional)
             </button>
@@ -810,7 +1067,7 @@ export function ProcessingSection() {
                             <Label className="text-xs text-white/50 font-medium">Animation</Label>
                           </div>
                           <div className="grid grid-cols-4 sm:grid-cols-8 gap-1.5">
-                            {ANIMATION_OPTIONS.map((anim) => (
+                            {ANIMATION_OPTIONS_WITH_ICONS.map((anim) => (
                               <TooltipProvider key={anim.id}>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
