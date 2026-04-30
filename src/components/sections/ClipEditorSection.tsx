@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
@@ -33,6 +33,10 @@ import {
   Share2,
   Star,
   ChevronDown,
+  ExternalLink,
+  Volume2,
+  VolumeX,
+  Maximize2,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
@@ -105,6 +109,122 @@ type CaptionStyle = "default" | "bold" | "karaoke" | "outline";
 type LayoutOption = "9:16" | "1:1" | "16:9";
 type CaptionPosition = "bottom" | "center" | "top";
 
+// ─── Video URL Helpers ─────────────────────────────────────────────────────
+
+interface VideoSource {
+  platform: "youtube" | "vimeo" | "tiktok" | "instagram" | "other";
+  videoId: string | null;
+  embedUrl: string | null;
+  thumbnailUrl: string | null;
+}
+
+function parseVideoSource(url: string): VideoSource {
+  try {
+    const urlObj = new URL(url);
+    const host = urlObj.hostname.toLowerCase();
+
+    // YouTube
+    if (host.includes("youtube.com") || host.includes("youtu.be")) {
+      const videoId =
+        urlObj.searchParams.get("v") ||
+        (host.includes("youtu.be")
+          ? urlObj.pathname.split("/").filter(Boolean).pop()
+          : null) ||
+        urlObj.pathname.match(/\/embed\/([^/?]+)/)?.[1] ||
+        null;
+      return {
+        platform: "youtube",
+        videoId,
+        embedUrl: videoId ? `https://www.youtube.com/embed/${videoId}` : null,
+        thumbnailUrl: videoId
+          ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
+          : null,
+      };
+    }
+
+    // Vimeo
+    if (host.includes("vimeo.com")) {
+      const videoId =
+        urlObj.pathname.split("/").filter(Boolean).pop() || null;
+      return {
+        platform: "vimeo",
+        videoId,
+        embedUrl: videoId ? `https://player.vimeo.com/video/${videoId}` : null,
+        thumbnailUrl: null,
+      };
+    }
+
+    // TikTok
+    if (host.includes("tiktok.com")) {
+      const parts = urlObj.pathname.split("/").filter(Boolean);
+      const videoId = parts.length > 0 ? parts[parts.length - 1] : null;
+      return {
+        platform: "tiktok",
+        videoId,
+        embedUrl: null,
+        thumbnailUrl: null,
+      };
+    }
+
+    // Instagram
+    if (host.includes("instagram.com")) {
+      return {
+        platform: "instagram",
+        videoId: null,
+        embedUrl: null,
+        thumbnailUrl: null,
+      };
+    }
+
+    return { platform: "other", videoId: null, embedUrl: null, thumbnailUrl: null };
+  } catch {
+    return { platform: "other", videoId: null, embedUrl: null, thumbnailUrl: null };
+  }
+}
+
+/**
+ * Parse a time string like "1:23" or "0:45" into seconds
+ */
+function parseTimeToSeconds(timeStr: string): number {
+  if (!timeStr) return 0;
+  const parts = timeStr.split(":").map(Number);
+  if (parts.length === 3) {
+    // H:MM:SS
+    return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  } else if (parts.length === 2) {
+    // M:SS
+    return parts[0] * 60 + parts[1];
+  }
+  return 0;
+}
+
+/**
+ * Get embed URL with start/end times for a clip
+ */
+function getClipEmbedUrl(
+  source: VideoSource,
+  startTimeStr: string,
+  durationStr: string
+): string | null {
+  if (!source.embedUrl) return null;
+
+  const startSeconds = parseTimeToSeconds(startTimeStr);
+  const durationSeconds = parseTimeToSeconds(durationStr);
+  const endSeconds = startSeconds + durationSeconds;
+
+  if (source.platform === "youtube") {
+    return `${source.embedUrl}?start=${startSeconds}&end=${endSeconds}&autoplay=1&rel=0&modestbranding=1`;
+  }
+
+  if (source.platform === "vimeo") {
+    const mins = Math.floor(startSeconds / 60);
+    const secs = startSeconds % 60;
+    return `${source.embedUrl}#t=${mins}m${secs}s&autoplay=1`;
+  }
+
+  return source.embedUrl;
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function parseTags(tagsStr: string): string[] {
@@ -151,21 +271,46 @@ function getClipGradient(clipId: string): string {
   return gradients[Math.abs(hash) % gradients.length];
 }
 
-// ─── Clip Card Component (Opus.pro style) ────────────────────────────────────
+// ─── Clip Card Component (with video playback) ────────────────────────────
 
 function ClipCard({
   clip,
   index,
   isSelected,
   onClick,
+  videoSource,
+  videoThumbnail,
 }: {
   clip: ClipData;
   index: number;
   isSelected: boolean;
   onClick: () => void;
+  videoSource: VideoSource;
+  videoThumbnail: string | null;
 }) {
   const tags = parseTags(clip.tags);
   const gradient = getClipGradient(clip.id);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [imgError, setImgError] = useState(false);
+
+  // Use video's actual thumbnail or fallback to YouTube thumbnail from source
+  const thumbnailUrl =
+    videoThumbnail || videoSource.thumbnailUrl;
+
+  // Get embed URL for this clip
+  const embedUrl = getClipEmbedUrl(videoSource, clip.startTime, clip.duration);
+
+  const handlePlay = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (embedUrl) {
+      setIsPlaying(true);
+    }
+  };
+
+  const handleStop = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsPlaying(false);
+  };
 
   return (
     <motion.div
@@ -179,61 +324,114 @@ function ClipCard({
       }`}
       onClick={onClick}
     >
-      {/* Thumbnail */}
+      {/* Thumbnail / Video Player */}
       <div className="relative aspect-[9/16] sm:aspect-[9/14] bg-black overflow-hidden">
-        {/* Gradient background as thumbnail placeholder */}
-        <div className={`absolute inset-0 bg-gradient-to-br ${gradient}`} />
-
-        {/* Animated shimmer overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-
-        {/* Content overlay on thumbnail - like opus title boxes */}
-        <div className="absolute top-3 left-3 right-3">
-          <div className="bg-white/95 backdrop-blur-sm rounded-md px-2 py-1.5 max-w-[85%]">
-            <p className="text-[11px] font-semibold text-black leading-tight line-clamp-2">
-              {clip.title}
-            </p>
+        {isPlaying && embedUrl ? (
+          /* ─── Embedded Video Player ─── */
+          <div className="absolute inset-0">
+            <iframe
+              src={embedUrl}
+              className="absolute inset-0 w-full h-full"
+              allow="autoplay; encrypted-media; picture-in-picture"
+              allowFullScreen
+              title={clip.title}
+              style={{ border: "none" }}
+            />
+            {/* Close player button */}
+            <button
+              onClick={handleStop}
+              className="absolute top-2 right-2 z-10 w-7 h-7 rounded-full bg-black/70 backdrop-blur-sm flex items-center justify-center text-white/80 hover:text-white hover:bg-black/90 transition-colors"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
           </div>
-        </div>
+        ) : (
+          /* ─── Thumbnail with Play Button ─── */
+          <>
+            {/* Video thumbnail image or gradient fallback */}
+            {thumbnailUrl && !imgError ? (
+              <img
+                src={thumbnailUrl}
+                alt={clip.title}
+                className="absolute inset-0 w-full h-full object-cover"
+                onError={() => setImgError(true)}
+                loading="lazy"
+              />
+            ) : (
+              <div className={`absolute inset-0 bg-gradient-to-br ${gradient}`} />
+            )}
 
-        {/* Timestamp overlay - top right */}
-        <div className="absolute top-3 right-3">
-          <div className="bg-black/70 backdrop-blur-sm rounded px-1.5 py-0.5">
-            <span className="text-[10px] font-medium text-white/80 tabular-nums">
-              {clip.startTime} - {clip.duration}
-            </span>
-          </div>
-        </div>
+            {/* Dark overlay */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
 
-        {/* Play button overlay */}
-        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-          <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/20">
-            <Play className="w-4 h-4 text-white ml-0.5" />
-          </div>
-        </div>
-
-        {/* Score badge - bottom left */}
-        <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/90 via-black/50 to-transparent">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className={`text-2xl font-bold tabular-nums ${getScoreColor(clip.viralityScore)}`}>
-                {clip.viralityScore}
-              </span>
-              <div className="flex flex-col gap-0.5">
-                <Trophy className="w-3 h-3 text-white/30" />
-                <Calendar className="w-3 h-3 text-white/30" />
+            {/* Content overlay on thumbnail */}
+            <div className="absolute top-3 left-3 right-3">
+              <div className="bg-white/95 backdrop-blur-sm rounded-md px-2 py-1.5 max-w-[85%]">
+                <p className="text-[11px] font-semibold text-black leading-tight line-clamp-2">
+                  {clip.title}
+                </p>
               </div>
             </div>
-            <div className="flex items-center gap-1">
-              <button
-                className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <Star className="w-3 h-3 text-white/50" />
-              </button>
+
+            {/* Timestamp overlay - top right */}
+            <div className="absolute top-3 right-3">
+              <div className="bg-black/70 backdrop-blur-sm rounded px-1.5 py-0.5">
+                <span className="text-[10px] font-medium text-white/80 tabular-nums">
+                  {clip.startTime} - {clip.duration}
+                </span>
+              </div>
             </div>
-          </div>
-        </div>
+
+            {/* Play button overlay - clickable to start video */}
+            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+              {embedUrl ? (
+                <button
+                  onClick={handlePlay}
+                  className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/20 hover:bg-white/30 hover:scale-110 transition-all"
+                >
+                  <Play className="w-5 h-5 text-white ml-0.5" fill="white" />
+                </button>
+              ) : (
+                <div className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20">
+                  <Play className="w-5 h-5 text-white/50 ml-0.5" />
+                </div>
+              )}
+            </div>
+
+            {/* Always-visible small play button for quick access */}
+            {embedUrl && !isPlaying && (
+              <button
+                onClick={handlePlay}
+                className="absolute bottom-14 left-1/2 -translate-x-1/2 w-8 h-8 rounded-full bg-pink-500/80 backdrop-blur-sm flex items-center justify-center shadow-lg shadow-pink-500/30 hover:bg-pink-500 transition-colors"
+              >
+                <Play className="w-3.5 h-3.5 text-white ml-0.5" fill="white" />
+              </button>
+            )}
+
+            {/* Score badge - bottom */}
+            <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/90 via-black/50 to-transparent">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className={`text-2xl font-bold tabular-nums ${getScoreColor(clip.viralityScore)}`}>
+                    {clip.viralityScore}
+                  </span>
+                  <div className="flex flex-col gap-0.5">
+                    <Trophy className="w-3 h-3 text-white/30" />
+                    <Calendar className="w-3 h-3 text-white/30" />
+                  </div>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button
+                    className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Star className="w-3 h-3 text-white/50" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Card Footer - Title + Tags */}
@@ -261,11 +459,128 @@ function ClipCard({
   );
 }
 
+// ─── Clip Video Player Component ─────────────────────────────────────────
+
+function ClipVideoPlayer({
+  clip,
+  videoSource,
+  videoThumbnail,
+}: {
+  clip: ClipData;
+  videoSource: VideoSource;
+  videoThumbnail: string | null;
+}) {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [imgError, setImgError] = useState(false);
+
+  const thumbnailUrl = videoThumbnail || videoSource.thumbnailUrl;
+  const embedUrl = getClipEmbedUrl(videoSource, clip.startTime, clip.duration);
+  const startSeconds = parseTimeToSeconds(clip.startTime);
+  const endSeconds = startSeconds + parseTimeToSeconds(clip.duration);
+
+  if (isPlaying && embedUrl) {
+    return (
+      <div className="relative aspect-[9/16] max-h-[320px] rounded-lg overflow-hidden bg-black border border-white/5">
+        <iframe
+          src={embedUrl}
+          className="absolute inset-0 w-full h-full"
+          allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+          allowFullScreen
+          title={clip.title}
+          style={{ border: "none" }}
+        />
+        <button
+          onClick={() => setIsPlaying(false)}
+          className="absolute top-2 right-2 z-10 w-7 h-7 rounded-full bg-black/70 backdrop-blur-sm flex items-center justify-center text-white/80 hover:text-white hover:bg-black/90 transition-colors"
+        >
+          <X className="w-3.5 h-3.5" />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative aspect-[9/16] max-h-[320px] rounded-lg overflow-hidden bg-black border border-white/5 cursor-pointer group" onClick={() => embedUrl && setIsPlaying(true)}>
+      {/* Thumbnail */}
+      {thumbnailUrl && !imgError ? (
+        <img
+          src={thumbnailUrl}
+          alt={clip.title}
+          className="absolute inset-0 w-full h-full object-cover"
+          onError={() => setImgError(true)}
+        />
+      ) : (
+        <div className="absolute inset-0 bg-gradient-to-br from-purple-900/30 via-[#0d0d18] to-pink-900/20" />
+      )}
+
+      {/* Overlay gradient */}
+      <div className="absolute inset-0 bg-black/30 group-hover:bg-black/20 transition-colors" />
+
+      {/* Center play button */}
+      <div className="absolute inset-0 flex items-center justify-center">
+        {embedUrl ? (
+          <div className="w-14 h-14 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/20 group-hover:bg-white/30 group-hover:scale-110 transition-all">
+            <Play className="w-6 h-6 text-white ml-1" fill="white" />
+          </div>
+        ) : (
+          <div className="w-14 h-14 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/10">
+            <Play className="w-6 h-6 text-white/40 ml-1" />
+          </div>
+        )}
+      </div>
+
+      {/* Time badge */}
+      <div className="absolute top-2 left-2">
+        <Badge
+          variant="secondary"
+          className="bg-black/60 backdrop-blur-sm text-white/80 text-[10px] border-white/10"
+        >
+          {clip.startTime} &bull; {clip.duration}
+        </Badge>
+      </div>
+
+      {/* Score */}
+      <div className="absolute bottom-3 left-3">
+        <span className={`text-3xl font-bold ${getScoreColor(clip.viralityScore)}`}>
+          {clip.viralityScore}
+        </span>
+      </div>
+
+      {/* Platform indicator */}
+      {videoSource.platform !== "other" && (
+        <div className="absolute bottom-3 right-3">
+          <Badge className="bg-black/50 backdrop-blur-sm text-white/60 text-[9px] border-white/10 capitalize">
+            {videoSource.platform}
+          </Badge>
+        </div>
+      )}
+
+      {/* Cannot play indicator */}
+      {!embedUrl && (
+        <div className="absolute top-2 right-2">
+          <a
+            href={clip.videoId ? undefined : "#"}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30 text-[9px]">
+              Preview not available
+            </Badge>
+          </a>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Clip Detail Panel (Slide-in from right) ────────────────────────────────
 
 function ClipDetailPanel({
   clip,
   templates,
+  videoSource,
+  videoThumbnail,
   onClose,
   onSave,
   onDelete,
@@ -273,6 +588,8 @@ function ClipDetailPanel({
 }: {
   clip: ClipData;
   templates: TemplateData[];
+  videoSource: VideoSource;
+  videoThumbnail: string | null;
   onClose: () => void;
   onSave: (data: {
     title: string;
@@ -379,27 +696,12 @@ function ClipDetailPanel({
       {/* Panel Content */}
       <ScrollArea className="flex-1">
         <div className="p-4 space-y-4">
-          {/* Clip Preview */}
-          <div className="relative aspect-[9/16] max-h-[280px] rounded-lg overflow-hidden bg-gradient-to-br from-purple-900/30 via-[#0d0d18] to-pink-900/20 border border-white/5">
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/10">
-                <Play className="w-5 h-5 text-white ml-0.5" />
-              </div>
-            </div>
-            <div className="absolute top-2 left-2">
-              <Badge
-                variant="secondary"
-                className="bg-black/50 backdrop-blur-sm text-white/80 text-[10px] border-white/10"
-              >
-                {clip.startTime} • {clip.duration}
-              </Badge>
-            </div>
-            <div className="absolute bottom-3 left-3">
-              <span className={`text-3xl font-bold ${getScoreColor(clip.viralityScore)}`}>
-                {clip.viralityScore}
-              </span>
-            </div>
-          </div>
+          {/* Clip Video Player */}
+          <ClipVideoPlayer
+            clip={clip}
+            videoSource={videoSource}
+            videoThumbnail={videoThumbnail}
+          />
 
           {/* Virality Score Bar */}
           <div className="space-y-1.5">
@@ -452,6 +754,27 @@ function ClipDetailPanel({
               </div>
             </div>
           </div>
+
+          {/* Open in YouTube / Source Link */}
+          {videoSource.embedUrl && (
+            <div className="flex gap-2">
+              <a
+                href={`${videoSource.embedUrl.replace("/embed/", "/watch?v=")}&t=${parseTimeToSeconds(clip.startTime)}s`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1"
+              >
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full bg-white/[0.03] border-white/10 text-white/70 text-xs hover:bg-white/[0.06] hover:text-white"
+                >
+                  <ExternalLink className="w-3.5 h-3.5 mr-1.5" />
+                  Open on {videoSource.platform === "youtube" ? "YouTube" : videoSource.platform === "vimeo" ? "Vimeo" : "Source"}
+                </Button>
+              </a>
+            </div>
+          )}
 
           {/* Caption Style */}
           <div className="space-y-1.5">
@@ -605,6 +928,9 @@ export function ClipEditorSection() {
   // Sort/filter state
   const [sortBy, setSortBy] = useState<"score" | "time" | "newest">("score");
   const [showDetailPanel, setShowDetailPanel] = useState(false);
+
+  // Parse video source once when video changes
+  const videoSource = video?.sourceUrl ? parseVideoSource(video.sourceUrl) : { platform: "other" as const, videoId: null, embedUrl: null, thumbnailUrl: null };
 
   // ─── Data Fetching ───────────────────────────────────────────────────────
 
@@ -862,6 +1188,13 @@ export function ClipEditorSection() {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Platform badge */}
+          {videoSource.platform !== "other" && (
+            <Badge className="bg-white/5 text-white/50 border-white/10 text-[10px] capitalize hidden sm:inline-flex">
+              {videoSource.platform}
+            </Badge>
+          )}
+
           {/* Sort button */}
           <Select value={sortBy} onValueChange={(val) => setSortBy(val as "score" | "time" | "newest")}>
             <SelectTrigger className="h-8 w-auto gap-1 bg-white/[0.03] border-white/10 text-white/60 text-xs hover:bg-white/[0.06] hover:text-white/80">
@@ -930,6 +1263,8 @@ export function ClipEditorSection() {
                 index={i}
                 isSelected={activeClipId === clip.id}
                 onClick={() => handleClipClick(clip.id)}
+                videoSource={videoSource}
+                videoThumbnail={video?.thumbnailUrl || null}
               />
             ))}
           </div>
@@ -954,6 +1289,8 @@ export function ClipEditorSection() {
             <ClipDetailPanel
               clip={selectedClip}
               templates={templates}
+              videoSource={videoSource}
+              videoThumbnail={video?.thumbnailUrl || null}
               onClose={() => {
                 setShowDetailPanel(false);
                 setActiveClipId(null);
