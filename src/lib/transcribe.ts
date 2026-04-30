@@ -6,7 +6,8 @@ import { execFile } from "child_process";
 import { promisify } from "util";
 import { existsSync, unlinkSync, mkdirSync } from "fs";
 import { join } from "path";
-import ZAI from "z-ai-web-dev-sdk";
+// ZAI import removed - cloud transcription not yet implemented
+// import ZAI from "z-ai-web-dev-sdk";
 
 const execFileAsync = promisify(execFile);
 
@@ -69,50 +70,13 @@ async function transcribeWithLocalWhisper(
 // ─── Cloud API Fallback (z-ai-web-dev-sdk) ──────────────────────────────────
 
 async function transcribeWithAPI(
-  filePath: string,
-  language?: string
-): Promise<TranscriptionResult> {
-  // Read the audio file and convert to base64
-  const { readFileSync } = await import("fs");
-  const fileBuffer = readFileSync(filePath);
-  const base64Audio = fileBuffer.toString("base64");
-
-  const zai = await ZAI.create();
-
-  // Use the chat completions API with audio description
-  // This is a fallback when local Whisper is not available
-  const completion = await zai.chat.completions.create({
-    messages: [
-      {
-        role: "system",
-        content:
-          "You are a transcription assistant. The user will provide an audio file description. " +
-          "Generate a realistic transcription based on the video metadata context. " +
-          "Return ONLY a JSON object with: { \"segments\": [{ \"start\": 0, \"end\": 5, \"text\": \"...\" }], \"language\": \"en\", \"duration\": 0 }",
-      },
-      {
-        role: "user",
-        content: `Transcribe this audio file. Language: ${language || "auto"}. Base64 audio length: ${base64Audio.length} bytes.`,
-      },
-    ],
-    thinking: { type: "disabled" },
-  });
-
-  const content = completion.choices?.[0]?.message?.content || "";
-
-  try {
-    const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
-    const jsonStr = jsonMatch ? jsonMatch[1] : content;
-    const result = JSON.parse(jsonStr.trim());
-
-    if (result.segments && Array.isArray(result.segments)) {
-      return formatWhisperResult(result, "whisper-api");
-    }
-  } catch {
-    // API fallback failed too
-  }
-
-  throw new Error("Cloud API transcription failed");
+  _filePath: string,
+  _language?: string
+): Promise<TranscriptionResult | null> {
+  // Cloud transcription API not yet implemented
+  // TODO: Integrate with OpenAI Whisper API, AssemblyAI, or Deepgram
+  console.warn("[transcribe] Cloud transcription API not yet implemented");
+  return null;
 }
 
 // ─── Format Whisper Result ──────────────────────────────────────────────────

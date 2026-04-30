@@ -1,0 +1,21 @@
+[Unit]
+Description=OpusClip Clone Next.js App
+After=network.target mongod.service
+Requires=mongod.service
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/opt/opusclip-clone/.next/standalone
+Environment=NODE_ENV=production
+Environment=PORT=3000
+Environment=HOSTNAME=0.0.0.0
+Environment=DATABASE_URL=file:/opt/opusclip-clone/.next/standalone/db/custom.db
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+ExecStart=/usr/bin/node /opt/opusclip-clone/.next/standalone/server.js
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

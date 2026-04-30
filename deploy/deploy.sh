@@ -23,8 +23,10 @@ APP_NAME="opusclip"
 APP_DIR="/opt/$APP_NAME"
 REPO_URL="https://github.com/kent1715/opusclip-clone.git"
 BRANCH="${1:-main}"
-APP_USER="opusclip"
+APP_USER="ubuntu"
 NODE_OPTIONS="--max-old-space-size=4096"
+STANDALONE_DIR="$APP_DIR/.next/standalone"
+WHISPER_VENV="/opt/whisper-venv"
 
 # ─── Step 1: Clone or Update Repository ──────────────────────────────────────
 log "Step 1/5: Fetching latest code (branch: $BRANCH)..."
@@ -111,65 +113,74 @@ npm run build
 log "Build complete."
 
 # ─── Step 5: Set Permissions & Start ────────────────────────────────────────
-log "Step 5/5: Setting permissions and starting application..."
+log "Step 5/6: Setting permissions and post-build setup..."
 
 # Set ownership
 chown -R "$APP_USER:$APP_USER" "$APP_DIR"
 
 # Create required directories with proper permissions
-mkdir -p "$APP_DIR"/{upload,download,data,logs}
-chown -R "$APP_USER:$APP_USER" "$APP_DIR"/{upload,download,data,logs}
+mkdir -p "$APP_DIR"/{upload,download,data,logs,db}
+chown -R "$APP_USER:$APP_USER" "$APP_DIR"/{upload,download,data,logs,db}
 
-# ─── Start with PM2 ─────────────────────────────────────────────────────────
-cd "$APP_DIR"
+# ─── Copy essential files to standalone directory ───────────────────────────
+log "Copying essential files to standalone directory..."
 
-# Check if ecosystem.config.js exists
-if [ ! -f "$APP_DIR/ecosystem.config.js" ]; then
-  cat > "$APP_DIR/ecosystem.config.js" << 'PM2EOF'
-module.exports = {
-  apps: [
-    {
-      name: 'opusclip',
-      script: 'node_modules/.bin/next',
-      args: 'start -p 3000',
-      cwd: '/opt/opusclip',
-      env: {
-        NODE_ENV: 'production',
-        NODE_OPTIONS: '--max-old-space-size=4096',
-        PORT: 3000,
-      },
-      instances: 1,
-      autorestart: true,
-      max_memory_restart: '2G',
-      watch: false,
-      max_restarts: 10,
-      restart_delay: 5000,
-      error_file: '/opt/opusclip/logs/error.log',
-      out_file: '/opt/opusclip/logs/out.log',
-      merge_logs: true,
-      log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
-    },
-  ],
-};
-PM2EOF
-fi
+# Copy mini-services (for Whisper transcription)
+cp -r "$APP_DIR/mini-services" "$STANDALONE_DIR/" 2>/dev/null || true
 
-chown "$APP_USER:$APP_USER" "$APP_DIR/ecosystem.config.js"
+# Copy public folder
+cp -r "$APP_DIR/public" "$STANDALONE_DIR/" 2>/dev/null || true
 
-# Start or reload PM2
-if pm2 describe "$APP_NAME" &>/dev/null; then
-  pm2 reload "$APP_NAME" --update-env
-  log "Application reloaded."
+# Copy .env.local if it exists
+cp "$APP_DIR/.env.local" "$STANDALONE_DIR/.env.local" 2>/dev/null || true
+cp "$APP_DIR/.env" "$STANDALONE_DIR/.env" 2>/dev/null || true
+
+# Copy .env.production if it exists
+cp "$APP_DIR/.env.production" "$STANDALONE_DIR/.env.production" 2>/dev/null || true
+
+# Create db directory in standalone
+mkdir -p "$STANDALONE_DIR/db"
+cp "$APP_DIR/db/"*.db "$STANDALONE_DIR/db/" 2>/dev/null || true
+
+chown -R "$APP_USER:$APP_USER" "$STANDALONE_DIR"
+
+# ─── Setup Whisper virtual environment ──────────────────────────────────────
+log "Setting up Whisper transcription environment..."
+
+if [ ! -d "$WHISPER_VENV" ]; then
+  python3 -m venv "$WHISPER_VENV"
+  "$WHISPER_VENV/bin/pip" install --upgrade pip
+  "$WHISPER_VENV/bin/pip" install faster-whisper
+  info "Whisper venv created at $WHISPER_VENV"
 else
-  sudo -u "$APP_USER" pm2 start ecosystem.config.js
-  log "Application started."
+  # Ensure faster-whisper is installed
+  if ! "$WHISPER_VENV/bin/python" -c "import faster_whisper" 2>/dev/null; then
+    "$WHISPER_VENV/bin/pip" install --upgrade pip
+    "$WHISPER_VENV/bin/pip" install faster-whisper
+    info "faster-whisper installed in existing venv"
+  fi
 fi
 
-# Save PM2 process list
-pm2 save
+chown -R "$APP_USER:$APP_USER" "$WHISPER_VENV"
 
-# Show status
-pm2 status
+# ─── Install systemd service ────────────────────────────────────────────────
+log "Step 6/6: Installing systemd service..."
+
+cp "$APP_DIR/deploy/opusclip.service" /etc/systemd/system/opusclip.service
+systemctl daemon-reload
+systemctl enable opusclip
+
+# Stop PM2 if running
+if command -v pm2 &>/dev/null && pm2 describe "$APP_NAME" &>/dev/null 2>&1; then
+  pm2 stop "$APP_NAME" 2>/dev/null || true
+  pm2 delete "$APP_NAME" 2>/dev/null || true
+  pm2 save 2>/dev/null || true
+fi
+
+# Start with systemd
+systemctl restart opusclip
+sleep 3
+systemctl status opusclip --no-pager || true
 
 # ─── Summary ─────────────────────────────────────────────────────────────────
 echo ""
@@ -180,11 +191,11 @@ echo ""
 echo "  App running at: http://$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4 2>/dev/null || echo 'YOUR_EC2_IP'):3000"
 echo ""
 echo "  Useful commands:"
-echo "    pm2 status              # Check app status"
-echo "    pm2 logs opusclip       # View logs"
-echo "    pm2 restart opusclip    # Restart app"
-echo "    pm2 stop opusclip       # Stop app"
-echo "    nano $APP_DIR/.env      # Edit environment variables"
+echo "    sudo systemctl status opusclip   # Check app status"
+echo "    sudo journalctl -u opusclip -f   # View logs"
+echo "    sudo systemctl restart opusclip  # Restart app"
+echo "    sudo systemctl stop opusclip     # Stop app"
+echo "    nano $APP_DIR/.env               # Edit environment variables"
 echo ""
 echo "  Next: Run ./setup-nginx.sh for reverse proxy + SSL"
 echo "==============================================================="

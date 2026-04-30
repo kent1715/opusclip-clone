@@ -597,7 +597,7 @@ export async function POST(request: Request) {
       updateProgress(video.id, 20, "transcribing", "Transcribing audio with AI...");
       try {
         const whisperReady = await isWhisperAvailable();
-        if (whisperReady || true) { // Always try - has fallback
+        if (whisperReady) {
           transcription = await transcribeVideo(
             url,
             speechLanguage,
