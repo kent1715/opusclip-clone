@@ -105,9 +105,11 @@ export async function POST(request: Request) {
     )
 
     // Set session cookie (httpOnly for security, 30 day expiry)
+    // Note: secure=false when no HTTPS (e.g. EC2 with HTTP only)
+    const isSecure = process.env.NODE_ENV === 'production' && process.env.NEXT_PUBLIC_BASE_URL?.startsWith('https')
     response.cookies.set(SESSION_COOKIE, user.id, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: isSecure,
       sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 30, // 30 days
       path: '/',

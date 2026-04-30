@@ -252,9 +252,10 @@ export async function GET(
     const response = NextResponse.redirect(`${BASE_URL}/?social=success`)
 
     // Set session cookie
+    const isSecure = process.env.NODE_ENV === 'production' && process.env.NEXT_PUBLIC_BASE_URL?.startsWith('https')
     response.cookies.set(SESSION_COOKIE, user.id, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: isSecure,
       sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 30, // 30 days
       path: '/',
@@ -263,7 +264,7 @@ export async function GET(
     // Clear the oauth_state cookie
     response.cookies.set('oauth_state', '', {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: isSecure,
       sameSite: 'lax',
       maxAge: 0,
       path: '/',

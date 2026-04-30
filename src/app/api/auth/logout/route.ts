@@ -8,9 +8,10 @@ export async function POST() {
   )
 
   // Clear session cookie
+  const isSecure = process.env.NODE_ENV === 'production' && process.env.NEXT_PUBLIC_BASE_URL?.startsWith('https')
   response.cookies.set(SESSION_COOKIE, '', {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: isSecure,
     sameSite: 'lax',
     maxAge: 0,
     path: '/',
