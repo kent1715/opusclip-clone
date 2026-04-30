@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
@@ -257,7 +257,8 @@ function getClipEmbedUrl(
   const endSeconds = startSeconds + durationSeconds;
 
   if (source.platform === "youtube") {
-    return `${source.embedUrl}?start=${startSeconds}&end=${endSeconds}&autoplay=1&rel=0&modestbranding=1`;
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    return `${source.embedUrl}?start=${startSeconds}&end=${endSeconds}&autoplay=1&enablejsapi=1&origin=${origin}&rel=0&modestbranding=1`;
   }
   if (source.platform === "vimeo") {
     const mins = Math.floor(startSeconds / 60);
@@ -319,7 +320,156 @@ function parseCaptions(captionsStr: string | null): string[] {
   return captionsStr.split("|").map((s) => s.trim()).filter(Boolean);
 }
 
-function CaptionOverlay({
+// ─── YouTube Player API Hook ──────────────────────────────────────────────
+
+const YT_STATE = {
+  UNSTARTED: -1,
+  ENDED: 0,
+  PLAYING: 1,
+  PAUSED: 2,
+  BUFFERING: 3,
+};
+
+function useYouTubePlayer(iframeRef: React.RefObject<HTMLIFrameElement | null>) {
+  const [currentTime, setCurrentTime] = useState(0);
+  const [playerState, setPlayerState] = useState(-1);
+  const playerRef = useRef<any>(null);
+  const rafRef = useRef<number>(0);
+
+  // Load YouTube IFrame API
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    // Check if API already loaded
+    if ((window as any).YT?.Player) {
+      return; // API already available
+    }
+
+    // Load API script
+    const tag = document.createElement('script');
+    tag.src = 'https://www.youtube.com/iframe_api';
+    const firstScriptTag = document.getElementsByTagName('script')[0];
+    firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
+  }, []);
+
+  // Create player when iframe is available
+  useEffect(() => {
+    if (!iframeRef.current) return;
+
+    // Wait for YT API to be ready
+    const tryCreatePlayer = () => {
+      const YT = (window as any).YT;
+      if (!YT?.Player) {
+        setTimeout(tryCreatePlayer, 200);
+        return;
+      }
+
+      playerRef.current = new YT.Player(iframeRef.current!, {
+        events: {
+          onStateChange: (event: any) => {
+            setPlayerState(event.data);
+          },
+          onReady: () => {
+            // Start time tracking
+            const tick = () => {
+              if (playerRef.current?.getCurrentTime) {
+                setCurrentTime(playerRef.current.getCurrentTime());
+              }
+              rafRef.current = requestAnimationFrame(tick);
+            };
+            rafRef.current = requestAnimationFrame(tick);
+          },
+        },
+      });
+    };
+
+    tryCreatePlayer();
+
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      if (playerRef.current?.destroy) {
+        try { playerRef.current.destroy(); } catch {}
+      }
+    };
+  }, [iframeRef]);
+
+  return { currentTime, playerState };
+}
+
+// ─── Fallback Elapsed Time Hook ───────────────────────────────────────────
+
+function useElapsedTime(isActive: boolean, bufferMs: number = 800) {
+  const [elapsed, setElapsed] = useState(0);
+  const startRef = useRef<number>(0);
+  const rafRef = useRef<number>(0);
+  const bufferTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const activeRef = useRef(isActive);
+
+  // Keep activeRef in sync
+  useEffect(() => {
+    activeRef.current = isActive;
+  }, [isActive]);
+
+  useEffect(() => {
+    if (!isActive) {
+      return;
+    }
+
+    // Buffer delay to account for video loading
+    bufferTimerRef.current = setTimeout(() => {
+      startRef.current = performance.now();
+
+      const tick = (now: number) => {
+        if (activeRef.current) {
+          setElapsed((now - startRef.current) / 1000);
+        }
+        rafRef.current = requestAnimationFrame(tick);
+      };
+
+      rafRef.current = requestAnimationFrame(tick);
+    }, bufferMs);
+
+    return () => {
+      clearTimeout(bufferTimerRef.current);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, [isActive, bufferMs]);
+
+  // Return 0 when not active, otherwise return tracked elapsed
+  return isActive ? elapsed : 0;
+}
+
+// ─── Timestamped Subtitle Segments ────────────────────────────────────────
+
+interface SubtitleSegment {
+  text: string;
+  words: string[];
+  startTime: number;  // seconds, relative to clip start (0-based)
+  endTime: number;    // seconds, relative to clip start
+}
+
+function generateSubtitleSegments(
+  captionLines: string[],
+  clipDurationSeconds: number
+): SubtitleSegment[] {
+  if (captionLines.length === 0 || clipDurationSeconds <= 0) return [];
+
+  const segmentDuration = clipDurationSeconds / captionLines.length;
+
+  return captionLines.map((line, i) => {
+    const words = line.split(/\s+/).filter(Boolean);
+    return {
+      text: line,
+      words,
+      startTime: i * segmentDuration,
+      endTime: (i + 1) * segmentDuration,
+    };
+  });
+}
+
+// ─── Synced Subtitle Overlay Component ────────────────────────────────────
+
+function SubtitleOverlay({
   captions,
   style,
   font,
@@ -328,6 +478,9 @@ function CaptionOverlay({
   size,
   position,
   isActive,
+  currentVideoTime,
+  clipStartTime,
+  clipDuration,
 }: {
   captions: string[];
   style: string;
@@ -337,67 +490,44 @@ function CaptionOverlay({
   size: number;
   position: string;
   isActive: boolean;
+  currentVideoTime: number;  // Current video playback time in seconds (absolute)
+  clipStartTime: number;     // Clip start time in seconds (absolute)
+  clipDuration: number;      // Clip duration in seconds
 }) {
-  const [currentLine, setCurrentLine] = useState(0);
-  const [highlightedWord, setHighlightedWord] = useState(0);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  const wordIntervalRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Get preset for the style
+  // Get preset and font
   const preset = CAPTION_PRESETS.find((p) => p.id === style) || CAPTION_PRESETS.find((p) => p.id === "default")!;
   const fontOption = FONT_OPTIONS.find((f) => f.id === font) || FONT_OPTIONS[0];
-
-  // Determine effective color: if preset has a color and user hasn't customized, use preset color
-  // But if user selected a custom color (not default white), prefer user color
   const effectiveColor = color !== "#ffffff" ? color : preset.textColor;
 
-  // Auto-cycle through caption lines
-  useEffect(() => {
-    if (!isActive || captions.length <= 1) {
-      setCurrentLine(0);
-      return;
-    }
+  // Calculate elapsed time within the clip (0-based)
+  const clipElapsed = Math.max(0, currentVideoTime - clipStartTime);
 
-    // Each caption line shows for ~3 seconds
-    const lineDuration = 3000;
-    intervalRef.current = setInterval(() => {
-      setCurrentLine((prev) => (prev + 1) % captions.length);
-    }, lineDuration);
+  // Generate subtitle segments
+  const segments = useMemo(
+    () => generateSubtitleSegments(captions, clipDuration),
+    [captions, clipDuration]
+  );
 
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [isActive, captions.length]);
+  // Find current segment
+  const currentSegment = isActive ? segments.find(
+    seg => clipElapsed >= seg.startTime && clipElapsed < seg.endTime
+  ) : null;
 
-  // Karaoke: cycle highlighted word
-  useEffect(() => {
-    if (!isActive || animation !== "karaoke") {
-      setHighlightedWord(0);
-      return;
-    }
+  if (!isActive || !currentSegment || clipElapsed > clipDuration) return null;
 
-    const currentWords = captions[currentLine]?.split(" ") || [];
-    if (currentWords.length <= 1) {
-      setHighlightedWord(0);
-      return;
-    }
+  // Calculate word progress within current segment
+  const segmentElapsed = clipElapsed - currentSegment.startTime;
+  const segmentDuration = currentSegment.endTime - currentSegment.startTime;
+  const segmentProgress = Math.min(1, segmentElapsed / segmentDuration);
+  const highlightedWordIndex = Math.min(
+    currentSegment.words.length - 1,
+    Math.floor(segmentProgress * currentSegment.words.length)
+  );
 
-    const wordDuration = 3000 / currentWords.length;
-    wordIntervalRef.current = setInterval(() => {
-      setHighlightedWord((prev) => (prev + 1) % currentWords.length);
-    }, wordDuration);
+  const line = currentSegment.text;
+  const words = currentSegment.words;
 
-    return () => {
-      if (wordIntervalRef.current) clearInterval(wordIntervalRef.current);
-    };
-  }, [isActive, animation, currentLine, captions]);
-
-  if (!isActive || captions.length === 0) return null;
-
-  const line = captions[currentLine] || "";
-  const words = line.split(" ");
-
-  // Determine position classes
+  // Position classes
   const positionClasses =
     position === "top"
       ? "top-[12%]"
@@ -405,146 +535,86 @@ function CaptionOverlay({
       ? "top-[45%] -translate-y-1/2"
       : "bottom-[15%]";
 
-  // Build caption text based on style
+  // Render caption text with word-by-word highlighting
   const renderCaptionText = () => {
-    const text = preset.uppercase ? line.toUpperCase() : line;
+    const displayWords = preset.uppercase ? words.map((w) => w.toUpperCase()) : words;
 
-    if (animation === "karaoke" && words.length > 1) {
-      const displayWords = preset.uppercase ? words.map((w) => w.toUpperCase()) : words;
+    // Karaoke animation OR preset highlight with word tracking
+    if (animation === "karaoke" || preset.highlight) {
       return (
         <span>
-          {displayWords.map((word, i) => (
-            <span
-              key={i}
-              className="inline-block transition-all duration-200"
-              style={{
-                color: i === highlightedWord ? effectiveColor : `${effectiveColor}88`,
-                fontWeight: i === highlightedWord ? 900 : 700,
-                textShadow: i === highlightedWord
-                  ? `0 0 20px ${effectiveColor}66, 0 0 40px ${effectiveColor}33`
-                  : undefined,
-                transform: i === highlightedWord ? "scale(1.1)" : "scale(1)",
-              }}
-            >
-              {word}{" "}
-            </span>
-          ))}
+          {displayWords.map((word, i) => {
+            const isHighlighted = animation === "karaoke"
+              ? i === highlightedWordIndex
+              : i === 0; // For highlight presets, always highlight first word
+
+            const isPastWord = animation === "karaoke" && i < highlightedWordIndex;
+
+            return (
+              <span
+                key={i}
+                className="inline-block transition-all duration-150"
+                style={{
+                  color: isHighlighted
+                    ? effectiveColor
+                    : isPastWord
+                    ? `${effectiveColor}cc`
+                    : `${effectiveColor}66`,
+                  fontWeight: isHighlighted ? 900 : isPastWord ? 800 : 700,
+                  textShadow: isHighlighted
+                    ? `0 0 20px ${effectiveColor}66, 0 0 40px ${effectiveColor}33`
+                    : undefined,
+                  transform: isHighlighted ? "scale(1.08)" : "scale(1)",
+                }}
+              >
+                {word}{" "}
+              </span>
+            );
+          })}
         </span>
       );
     }
 
-    // Highlight style: first word highlighted
-    if (preset.highlight && words.length > 1) {
-      const displayWords = preset.uppercase ? words.map((w) => w.toUpperCase()) : words;
-      return (
-        <span>
-          <span
-            style={{
-              color: effectiveColor,
-              fontWeight: 900,
-              textShadow: `0 0 15px ${effectiveColor}44`,
-            }}
-          >
-            {displayWords[0]}{" "}
-          </span>
-          <span style={{ color: effectiveColor, fontWeight: 700 }}>
-            {displayWords.slice(1).join(" ")}
-          </span>
-        </span>
-      );
-    }
-
-    return text;
+    // Default: just show the full line
+    return preset.uppercase ? line.toUpperCase() : line;
   };
 
-  // Animation variants - using explicit motion.div props
-  const getAnimationVariants = (anim: string) => {
+  // Animation variants
+  const getAnimationProps = (anim: string) => {
     switch (anim) {
       case "bounce":
-        return {
-          initial: { y: 20, opacity: 0 } as const,
-          animate: { y: 0, opacity: 1 } as const,
-          exit: { y: -10, opacity: 0 } as const,
-          transition: { duration: 0.5, ease: "easeOut" as const },
-        };
-      case "wave":
-        return {
-          initial: { opacity: 0 } as const,
-          animate: { opacity: 1 } as const,
-          exit: { opacity: 0 } as const,
-          transition: { duration: 0.3 } as const,
-        };
-      case "fade":
-        return {
-          initial: { opacity: 0 } as const,
-          animate: { opacity: 1 } as const,
-          exit: { opacity: 0 } as const,
-          transition: { duration: 0.3 } as const,
-        };
+        return { initial: { y: 15, opacity: 0 }, animate: { y: 0, opacity: 1 }, transition: { duration: 0.4, ease: "easeOut" as const } };
       case "slide-up":
-        return {
-          initial: { y: 30, opacity: 0 } as const,
-          animate: { y: 0, opacity: 1 } as const,
-          exit: { y: -15, opacity: 0 } as const,
-          transition: { duration: 0.4, ease: "easeOut" as const },
-        };
+        return { initial: { y: 20, opacity: 0 }, animate: { y: 0, opacity: 1 }, transition: { duration: 0.35, ease: "easeOut" as const } };
+      case "fade":
+        return { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: { duration: 0.3 } };
       case "glitch":
-        return {
-          initial: { opacity: 0, x: -2 } as const,
-          animate: { opacity: 1, x: 0 } as const,
-          exit: { opacity: 0, x: 2 } as const,
-          transition: { duration: 0.2 } as const,
-        };
+        return { initial: { opacity: 0, x: -2 }, animate: { opacity: 1, x: 0 }, transition: { duration: 0.15 } };
       case "rotate":
-        return {
-          initial: { rotate: -3, opacity: 0 } as const,
-          animate: { rotate: 0, opacity: 1 } as const,
-          exit: { rotate: 3, opacity: 0 } as const,
-          transition: { duration: 0.3 } as const,
-        };
-      case "karaoke":
-        return {
-          initial: { opacity: 0 } as const,
-          animate: { opacity: 1 } as const,
-          exit: { opacity: 0 } as const,
-          transition: { duration: 0.2 } as const,
-        };
+        return { initial: { rotate: -3, opacity: 0 }, animate: { rotate: 0, opacity: 1 }, transition: { duration: 0.3 } };
+      case "wave":
+        return { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: { duration: 0.25 } };
       default:
-        return {
-          initial: { opacity: 0 } as const,
-          animate: { opacity: 1 } as const,
-          exit: { opacity: 0 } as const,
-          transition: { duration: 0.2 } as const,
-        };
+        return { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: { duration: 0.2 } };
     }
   };
 
-  const animProps = getAnimationVariants(animation);
-
-  // Compute font size for the container (scale down for small cards)
+  const animProps = getAnimationProps(animation);
   const fontSize = size;
 
-  // Glitch effect extra style
-  const glitchStyle =
-    animation === "glitch"
-      ? {
-          textShadow: `2px 0 #ff0000, -2px 0 #00ff00, 0 0 4px ${effectiveColor}44`,
-        }
-      : {};
+  const glitchStyle = animation === "glitch"
+    ? { textShadow: `2px 0 #ff0000, -2px 0 #00ff00, 0 0 4px ${effectiveColor}44` }
+    : {};
 
-  // Outline style (Popline, Outline)
   const outlineStyle = preset.outline
-    ? {
-        WebkitTextStroke: `1.5px ${effectiveColor}`,
-        color: "transparent",
-      }
+    ? { WebkitTextStroke: `1.5px ${effectiveColor}`, color: "transparent" }
     : {};
 
   return (
     <div className={`absolute left-0 right-0 ${positionClasses} z-20 px-3 pointer-events-none`}>
       <AnimatePresence mode="wait">
         <motion.div
-          key={`${currentLine}-${animation}`}
+          key={`${currentSegment.startTime}-${animation}`}
           {...animProps}
           className="text-center"
         >
@@ -566,17 +636,17 @@ function CaptionOverlay({
         </motion.div>
       </AnimatePresence>
 
-      {/* Caption line indicator dots */}
-      {captions.length > 1 && (
+      {/* Progress indicator dots */}
+      {segments.length > 1 && (
         <div className="flex items-center justify-center gap-1 mt-2">
-          {captions.map((_, i) => (
+          {segments.map((seg, i) => (
             <div
               key={i}
               className="rounded-full transition-all duration-300"
               style={{
-                width: i === currentLine ? 12 : 4,
+                width: currentSegment === seg ? 12 : 4,
                 height: 4,
-                background: i === currentLine ? effectiveColor : "rgba(255,255,255,0.3)",
+                background: currentSegment === seg ? effectiveColor : "rgba(255,255,255,0.3)",
               }}
             />
           ))}
@@ -608,10 +678,20 @@ function ClipCard({
   const [isPlaying, setIsPlaying] = useState(false);
   const [imgError, setImgError] = useState(false);
   const [showCaptions, setShowCaptions] = useState(true);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const playingIframeRef = isPlaying ? iframeRef : { current: null };
+  const { currentTime: ytTime, playerState } = useYouTubePlayer(playingIframeRef);
+  const fallbackElapsed = useElapsedTime(isPlaying);
 
   const thumbnailUrl = videoThumbnail || videoSource.thumbnailUrl;
   const embedUrl = getClipEmbedUrl(videoSource, clip.startTime, clip.duration);
   const captionLines = parseCaptions(clip.captions);
+
+  const clipStartSeconds = parseTimeToSeconds(clip.startTime);
+  const clipDurationSeconds = parseTimeToSeconds(clip.duration);
+
+  // Use YouTube API time if available, otherwise fall back to elapsed time
+  const effectiveTime = playerState === YT_STATE.PLAYING ? ytTime : (clipStartSeconds + fallbackElapsed);
 
   const handlePlay = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -648,9 +728,10 @@ function ClipCard({
       {/* Thumbnail / Video Player */}
       <div className="relative aspect-[9/16] sm:aspect-[9/14] bg-black overflow-hidden">
         {isPlaying && embedUrl ? (
-          /* ─── Embedded Video Player with Caption Overlay ─── */
+          /* ─── Embedded Video Player with Subtitle Overlay ─── */
           <div className="absolute inset-0">
             <iframe
+              ref={iframeRef}
               src={embedUrl}
               className="absolute inset-0 w-full h-full"
               allow="autoplay; encrypted-media; picture-in-picture"
@@ -659,9 +740,9 @@ function ClipCard({
               style={{ border: "none" }}
             />
 
-            {/* Auto Caption Overlay */}
+            {/* Synced Subtitle Overlay */}
             {showCaptions && captionLines.length > 0 && (
-              <CaptionOverlay
+              <SubtitleOverlay
                 captions={captionLines}
                 style={clip.captionStyle}
                 font={clip.captionFont}
@@ -670,6 +751,9 @@ function ClipCard({
                 size={cardFontSize}
                 position={clip.captionPosition}
                 isActive={isPlaying}
+                currentVideoTime={effectiveTime}
+                clipStartTime={clipStartSeconds}
+                clipDuration={clipDurationSeconds}
               />
             )}
 
@@ -858,6 +942,10 @@ function ClipVideoPlayer({
   const [isPlaying, setIsPlaying] = useState(false);
   const [imgError, setImgError] = useState(false);
   const [showCaptions, setShowCaptions] = useState(true);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const playingIframeRef = isPlaying ? iframeRef : { current: null };
+  const { currentTime: ytTime, playerState } = useYouTubePlayer(playingIframeRef);
+  const fallbackElapsed = useElapsedTime(isPlaying);
 
   const thumbnailUrl = videoThumbnail || videoSource.thumbnailUrl;
   const embedUrl = getClipEmbedUrl(videoSource, clip.startTime, clip.duration);
@@ -866,10 +954,17 @@ function ClipVideoPlayer({
   // Scale font size for the detail panel
   const panelFontSize = Math.max(12, Math.round(clip.captionSize * 0.65));
 
+  const clipStartSeconds = parseTimeToSeconds(clip.startTime);
+  const clipDurationSeconds = parseTimeToSeconds(clip.duration);
+
+  // Use YouTube API time if available, otherwise fall back to elapsed time
+  const effectiveTime = playerState === YT_STATE.PLAYING ? ytTime : (clipStartSeconds + fallbackElapsed);
+
   if (isPlaying && embedUrl) {
     return (
       <div className="relative aspect-[9/16] max-h-[320px] rounded-lg overflow-hidden bg-black border border-white/5">
         <iframe
+          ref={iframeRef}
           src={embedUrl}
           className="absolute inset-0 w-full h-full"
           allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
@@ -878,9 +973,9 @@ function ClipVideoPlayer({
           style={{ border: "none" }}
         />
 
-        {/* Auto Caption Overlay */}
+        {/* Synced Subtitle Overlay */}
         {showCaptions && captionLines.length > 0 && (
-          <CaptionOverlay
+          <SubtitleOverlay
             captions={captionLines}
             style={clip.captionStyle}
             font={clip.captionFont}
@@ -889,6 +984,9 @@ function ClipVideoPlayer({
             size={panelFontSize}
             position={clip.captionPosition}
             isActive={isPlaying}
+            currentVideoTime={effectiveTime}
+            clipStartTime={clipStartSeconds}
+            clipDuration={clipDurationSeconds}
           />
         )}
 

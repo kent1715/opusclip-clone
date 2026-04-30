@@ -27,3 +27,48 @@ Stage Summary:
 - Processing page now matches Opus.pro reference: URL input, video thumbnail, AI clipping settings, caption presets with font/animation/color customization
 - All new caption fields stored in database and passed through API
 - AI clip generation now respects genre and specific moments settings
+
+---
+Task ID: 2
+Agent: full-stack-developer
+Task: Implement real-time synced subtitle system
+
+Work Log:
+- Added `useMemo` to React imports in ClipEditorSection.tsx
+- Modified `getClipEmbedUrl` function to include `enablejsapi=1` and `origin` params for YouTube IFrame Player API
+- Created `useYouTubePlayer` custom hook that:
+  - Dynamically loads YouTube IFrame API script
+  - Creates YT.Player instance from iframe ref
+  - Tracks `currentTime` and `playerState` via requestAnimationFrame
+  - Cleans up on unmount
+- Created `useElapsedTime` fallback hook that:
+  - Uses performance.now() + requestAnimationFrame for time tracking
+  - Includes 800ms buffer delay for video loading
+  - Returns 0 when not active (avoids lint errors with setState in effect)
+- Created `SubtitleSegment` interface and `generateSubtitleSegments` function
+  - Distributes caption lines evenly across clip duration
+  - Each segment has startTime, endTime, text, and words arrays
+- Created new `SubtitleOverlay` component replacing old `CaptionOverlay`:
+  - Syncs with video playback time via `currentVideoTime`, `clipStartTime`, `clipDuration` props
+  - Finds current segment based on elapsed clip time
+  - Implements word-by-word karaoke highlighting based on segment progress
+  - Supports all animation variants (bounce, slide-up, fade, glitch, rotate, wave, karaoke)
+  - Shows progress indicator dots for multi-segment subtitles
+  - Removed old `CaptionOverlay` component (was causing lint errors with setState in effect)
+- Updated `ClipCard` component:
+  - Added iframeRef for YouTube player API
+  - Integrated useYouTubePlayer hook with conditional iframe ref
+  - Integrated useElapsedTime fallback hook
+  - Computes effectiveTime from YT API or fallback
+  - Replaced CaptionOverlay with SubtitleOverlay in playing state
+- Updated `ClipVideoPlayer` component:
+  - Same changes as ClipCard (iframeRef, hooks, SubtitleOverlay)
+- Fixed lint error in useElapsedTime (avoided synchronous setState in effect)
+- Verified build succeeds and dev server compiles without errors
+
+Stage Summary:
+- Subtitles now sync with actual video playback time instead of fixed 3-second timer
+- YouTube IFrame Player API provides real-time video position when available
+- Fallback elapsed time tracking ensures subtitles work even without YouTube API
+- Word-by-word karaoke highlighting progresses based on actual video time
+- All existing caption styles, animations, fonts, colors, and positions preserved
