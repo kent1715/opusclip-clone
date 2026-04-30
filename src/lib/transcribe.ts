@@ -42,10 +42,6 @@ async function transcribeWithLocalWhisper(
     "mini-services",
     "whisper_transcribe.py"
   );
-  const args = [pythonScript, filePath, "--output-format", "json"];
-  if (language && language !== "auto") {
-    args.push("--language", language);
-  }
 
   // On EC2, use the whisper virtual environment python
   // On dev, use regular python3
@@ -53,16 +49,29 @@ async function transcribeWithLocalWhisper(
     ? "/opt/whisper-venv/bin/python"
     : "python3";
 
-  const { stdout } = await execFileAsync(pythonCmd, args, {
+  const args = [pythonScript, filePath, "--output-format", "json", "--model", "small"];
+  if (language && language !== "auto") {
+    args.push("--language", language);
+  }
+
+  console.log(`[transcribe] Running: ${pythonCmd} ${args.join(" ")}`);
+
+  const { stdout, stderr } = await execFileAsync(pythonCmd, args, {
     timeout: 300000, // 5 minutes
     maxBuffer: 10 * 1024 * 1024,
   });
+
+  if (stderr) {
+    console.warn(`[transcribe] Whisper stderr: ${stderr.substring(0, 500)}`);
+  }
 
   const result = JSON.parse(stdout);
 
   if (result.error) {
     throw new Error(result.error);
   }
+
+  console.log(`[transcribe] Success: ${result.segments?.length || 0} segments, language=${result.language}, duration=${result.duration?.toFixed(1)}s`);
 
   return formatWhisperResult(result, "whisper-local");
 }

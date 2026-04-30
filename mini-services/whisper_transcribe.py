@@ -17,7 +17,7 @@ def main():
     parser.add_argument("audio_file", help="Path to the audio file")
     parser.add_argument("--output-format", default="json", choices=["json", "srt", "txt"])
     parser.add_argument("--language", default=None, help="Language code (e.g., en, id, ja). None for auto-detect.")
-    parser.add_argument("--model", default="base", choices=["tiny", "base", "small", "medium", "large"])
+    parser.add_argument("--model", default="small", choices=["tiny", "base", "small", "medium", "large"])
     args = parser.parse_args()
 
     try:
@@ -34,8 +34,13 @@ def main():
             args.audio_file,
             language=args.language,
             beam_size=5,
+            best_of=5,
             vad_filter=True,
             vad_parameters=dict(min_silence_duration_ms=500),
+            temperature=0,
+            condition_on_previous_text=True,
+            no_speech_threshold=0.6,
+            log_prob_threshold=-1.0,
         )
 
         segments = []

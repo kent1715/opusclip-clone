@@ -94,7 +94,7 @@ async function transcribeFile(
 ): Promise<NextResponse> {
   try {
     const pythonScript = join(/*turbopackIgnore: true*/ process.cwd(), "mini-services", "whisper_transcribe.py");
-    const args = [pythonScript, filePath, "--output-format", "json"];
+    const args = [pythonScript, filePath, "--output-format", "json", "--model", "small"];
     if (language && language !== "auto") {
       args.push("--language", language);
     }
