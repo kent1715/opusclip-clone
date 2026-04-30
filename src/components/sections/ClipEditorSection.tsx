@@ -66,6 +66,11 @@ interface ClipData {
   viralityScore: number;
   captions: string | null;
   captionStyle: string;
+  captionFont: string;
+  captionAnimation: string;
+  captionColor: string;
+  captionSize: number;
+  captionPosition: string;
   layout: string;
   templateId: string | null;
   tags: string;
@@ -98,6 +103,7 @@ interface TemplateData {
 
 type CaptionStyle = "default" | "bold" | "karaoke" | "outline";
 type LayoutOption = "9:16" | "1:1" | "16:9";
+type CaptionPosition = "bottom" | "center" | "top";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -272,6 +278,11 @@ function ClipDetailPanel({
     title: string;
     captions: string;
     captionStyle: CaptionStyle;
+    captionFont: string;
+    captionAnimation: string;
+    captionColor: string;
+    captionSize: number;
+    captionPosition: CaptionPosition;
     layout: LayoutOption;
     tags: string[];
     templateId: string;
@@ -285,6 +296,11 @@ function ClipDetailPanel({
   const [editCaptionStyle, setEditCaptionStyle] = useState<CaptionStyle>(
     clip.captionStyle as CaptionStyle
   );
+  const [editCaptionFont, setEditCaptionFont] = useState(clip.captionFont || "inter");
+  const [editCaptionAnimation, setEditCaptionAnimation] = useState(clip.captionAnimation || "none");
+  const [editCaptionColor, setEditCaptionColor] = useState(clip.captionColor || "#ffffff");
+  const [editCaptionSize, setEditCaptionSize] = useState(clip.captionSize || 24);
+  const [editCaptionPosition, setEditCaptionPosition] = useState<CaptionPosition>((clip.captionPosition as CaptionPosition) || "bottom");
   const [editLayout, setEditLayout] = useState<LayoutOption>(
     clip.layout as LayoutOption
   );
@@ -304,6 +320,11 @@ function ClipDetailPanel({
         title: editTitle,
         captions: editCaptions,
         captionStyle: editCaptionStyle,
+        captionFont: editCaptionFont,
+        captionAnimation: editCaptionAnimation,
+        captionColor: editCaptionColor,
+        captionSize: editCaptionSize,
+        captionPosition: editCaptionPosition,
         layout: editLayout,
         tags: editTags,
         templateId: editTemplateId,
@@ -715,6 +736,11 @@ export function ClipEditorSection() {
       title: string;
       captions: string;
       captionStyle: CaptionStyle;
+      captionFont: string;
+      captionAnimation: string;
+      captionColor: string;
+      captionSize: number;
+      captionPosition: CaptionPosition;
       layout: LayoutOption;
       tags: string[];
       templateId: string;

@@ -31,9 +31,9 @@ export function HeroSection() {
   const [loading, setLoading] = useState(false);
   const [clips, setClips] = useState<Clip[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const { user, setAuthModalTab, setCurrentView, setActiveVideoId } = useAppStore();
+  const { user, setAuthModalTab, setCurrentView, setActiveVideoId, setPendingUrl } = useAppStore();
 
-  const handleProcess = useCallback(async () => {
+  const handleProcess = useCallback(() => {
     if (!url.trim()) return;
 
     // If not logged in, prompt sign up first
@@ -42,44 +42,10 @@ export function HeroSection() {
       return;
     }
 
-    setLoading(true);
-    setError(null);
-    setClips(null);
-
-    try {
-      const res = await fetch("/api/process", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ url: url.trim(), userId: user.id }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to process video");
-      }
-
-      // Normalize clips from API response (tags may be JSON string)
-      const rawClips = data.data.clips || [];
-      const normalizedClips = rawClips.map((clip: Record<string, unknown>) => ({
-        ...clip,
-        tags: typeof clip.tags === 'string' ? (() => { try { return JSON.parse(clip.tags as string); } catch { return []; } })() : (Array.isArray(clip.tags) ? clip.tags : []),
-      }));
-      setClips(normalizedClips);
-      // If video was created, navigate to editor
-      if (data.data.id) {
-        setActiveVideoId(data.data.id);
-        setTimeout(() => setCurrentView("editor"), 1500);
-      }
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Something went wrong"
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [url, user, setAuthModalTab, setCurrentView, setActiveVideoId]);
+    // Navigate to processing page with the URL
+    setPendingUrl(url.trim());
+    setCurrentView("processing");
+  }, [url, user, setAuthModalTab, setCurrentView, setPendingUrl]);
 
   const defaultClips = [
     { title: "The Future of AI", score: 97, duration: "0:58" },

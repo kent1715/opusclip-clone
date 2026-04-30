@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-export type AppView = "landing" | "dashboard" | "editor" | "templates" | "settings";
+export type AppView = "landing" | "dashboard" | "processing" | "editor" | "templates" | "settings";
 
 interface AppState {
   // Navigation
@@ -30,6 +30,10 @@ interface AppState {
   activeVideoId: string | null;
   setActiveVideoId: (id: string | null) => void;
 
+  // Pending URL for processing page
+  pendingUrl: string;
+  setPendingUrl: (url: string) => void;
+
   // Auth modal
   showAuthModal: boolean;
   authModalTab: "signin" | "signup";
@@ -55,6 +59,10 @@ export const useAppStore = create<AppState>((set) => ({
   // Active video
   activeVideoId: null,
   setActiveVideoId: (id) => set({ activeVideoId: id }),
+
+  // Pending URL
+  pendingUrl: "",
+  setPendingUrl: (url) => set({ pendingUrl: url }),
 
   // Auth modal
   showAuthModal: false,

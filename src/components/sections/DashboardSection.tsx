@@ -190,14 +190,12 @@ function EmptyState({
 // ─── Main Component ──────────────────────────────────────────────────────────
 
 export function DashboardSection() {
-  const { user, setCurrentView, setActiveVideoId, setActiveClipId } = useAppStore();
+  const { user, setCurrentView, setActiveVideoId, setActiveClipId, setPendingUrl } = useAppStore();
 
   // Local state
   const [videos, setVideos] = useState<VideoData[]>([]);
   const [loading, setLoading] = useState(true);
   const [processUrl, setProcessUrl] = useState("");
-  const [processing, setProcessing] = useState(false);
-  const [processError, setProcessError] = useState<string | null>(null);
   const [deleteVideoId, setDeleteVideoId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -234,38 +232,13 @@ export function DashboardSection() {
 
   // ─── Handlers ────────────────────────────────────────────────────────────
 
-  const handleProcess = useCallback(async () => {
-    if (!processUrl.trim() || !user?.id) return;
-    setProcessing(true);
-    setProcessError(null);
+  const handleProcess = useCallback(() => {
+    if (!processUrl.trim()) return;
 
-    try {
-      const res = await fetch("/api/process", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ url: processUrl.trim(), userId: user.id }),
-      });
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to process video");
-      }
-
-      // Refresh the list and navigate to editor
-      setProcessUrl("");
-      await fetchVideos();
-
-      if (data.data?.id) {
-        setActiveVideoId(data.data.id);
-        setCurrentView("editor");
-      }
-    } catch (err) {
-      setProcessError(err instanceof Error ? err.message : "Something went wrong");
-    } finally {
-      setProcessing(false);
-    }
-  }, [processUrl, user?.id, fetchVideos, setActiveVideoId, setCurrentView]);
+    // Navigate to processing page with the URL so user can configure settings
+    setPendingUrl(processUrl.trim());
+    setCurrentView("processing");
+  }, [processUrl, setPendingUrl, setCurrentView]);
 
   const handleDeleteVideo = useCallback(
     async (videoId: string) => {
@@ -382,67 +355,19 @@ export function DashboardSection() {
                 onChange={(e) => setProcessUrl(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleProcess()}
                 className="flex-1 bg-transparent text-white/90 placeholder:text-white/25 outline-none text-sm py-1.5"
-                disabled={processing}
               />
             </div>
             <Button
               onClick={handleProcess}
-              disabled={processing || !processUrl.trim()}
+              disabled={!processUrl.trim()}
               className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white border-0 shadow-lg shadow-pink-500/20 hover:shadow-pink-500/30 transition-all duration-300 rounded-xl px-6 shrink-0 disabled:opacity-50 h-10"
             >
-              {processing ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                <>
-                  <Zap className="w-4 h-4 mr-2" />
-                  Process with AI
-                </>
-              )}
+              <Zap className="w-4 h-4 mr-2" />
+              Get Clips
             </Button>
           </div>
 
-          {/* Progress bar during processing */}
-          <AnimatePresence>
-            {processing && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                className="mt-4 space-y-2"
-              >
-                <div className="h-1 bg-white/5 rounded-full overflow-hidden">
-                  <motion.div
-                    initial={{ width: "0%" }}
-                    animate={{ width: "70%" }}
-                    transition={{ duration: 8, ease: "linear" }}
-                    className="h-full bg-gradient-to-r from-pink-500 to-purple-500 rounded-full"
-                  />
-                </div>
-                <div className="flex items-center gap-2 text-xs text-white/30">
-                  <Loader2 className="w-3 h-3 animate-spin text-pink-400" />
-                  <span>AI is analyzing your video and generating viral clips...</span>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
 
-          {/* Error message */}
-          <AnimatePresence>
-            {processError && (
-              <motion.div
-                initial={{ opacity: 0, y: -5 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -5 }}
-                className="mt-3 flex items-center gap-2 text-red-400 text-sm"
-              >
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                {processError}
-              </motion.div>
-            )}
-          </AnimatePresence>
         </motion.div>
 
         {/* ─── Top Stats Bar ──────────────────────────────────────────────── */}

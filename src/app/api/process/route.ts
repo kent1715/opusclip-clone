@@ -513,7 +513,20 @@ function generateContextualFallbackClips(
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { url, userId } = body;
+    const { url, userId, settings } = body;
+
+    // Extract settings with defaults
+    const captionStyle = settings?.captionStyle || "default";
+    const captionFont = settings?.captionFont || "inter";
+    const captionAnimation = settings?.captionAnimation || "none";
+    const captionColor = settings?.captionColor || "#ffffff";
+    const captionSize = settings?.captionSize || 24;
+    const captionPosition = settings?.captionPosition || "bottom";
+    const aspectRatio = settings?.aspectRatio || "9:16";
+    const genre = settings?.genre || "auto";
+    const clipLength = settings?.clipLength || "auto";
+    const specificMoments = settings?.specificMoments || "";
+    const autoHook = settings?.autoHook !== false;
 
     if (!url || typeof url !== "string") {
       return NextResponse.json(
@@ -602,6 +615,27 @@ export async function POST(request: Request) {
 
       const hasContent = contextSection.length > 0;
 
+      // Build genre-specific instructions
+      let genreInstruction = "";
+      if (genre && genre !== "auto") {
+        const genreMap: Record<string, string> = {
+          comedy: "comedy/humor — focus on funny moments, punchlines, and comedic timing",
+          education: "educational — focus on key learning points, aha moments, and practical takeaways",
+          music: "music/performance — focus on choruses, beat drops, vocal highlights, and musical peaks",
+          sports: "sports/highlights — focus on game-changing plays, incredible feats, and emotional reactions",
+          news: "news/commentary — focus on breaking points, key quotes, and shocking revelations",
+          gaming: "gaming — focus on epic plays, clutch moments, and entertaining reactions",
+          vlog: "vlog/lifestyle — focus on relatable moments, unexpected twists, and emotional highlights",
+        };
+        genreInstruction = `\nGenre focus: ${genreMap[genre] || genre}. Tailor clips to this genre.`;
+      }
+
+      // Build specific moments instruction
+      let momentsInstruction = "";
+      if (specificMoments) {
+        momentsInstruction = `\nUser is specifically looking for: "${specificMoments}". Prioritize finding moments that match this request.`;
+      }
+
       const systemPrompt = `You are an expert viral content analyst specializing in creating short-form video clips from long-form content. You analyze videos and generate clip suggestions that would perform well on social media (TikTok, Instagram Reels, YouTube Shorts).
 
 Given video information, generate 5 short clip suggestions. Each clip should:
@@ -609,7 +643,7 @@ Given video information, generate 5 short clip suggestions. Each clip should:
 - Include realistic timestamps and durations (clips should be 15-60 seconds)
 - Have a virality score from 60-99 (higher = more likely to go viral)
 - Include 2-4 relevant tags based on the video's actual topic
-- Include engaging caption text (pipe-separated lines, 2-4 lines)
+- Include engaging caption text (pipe-separated lines, 2-4 lines)${genreInstruction}${momentsInstruction}
 
 Return ONLY valid JSON in this exact format:
 {
@@ -627,10 +661,11 @@ Return ONLY valid JSON in this exact format:
 }
 
 CRITICAL RULES:
-1. Generate clips that are SPECIFIC to the video content. Reference the actual topic, people, or events mentioned.
-2. Do NOT use generic titles like "This Moment Changed Everything" or "Stop Scrolling".
+1. Generate clips that are SPECIFIC to the video content. Reference the actual topic, people, or events mentioned in the title/description.
+2. Do NOT use generic titles like "This Moment Changed Everything" or "Stop Scrolling" — always reference specific content from the video.
 3. The clip titles should make someone want to watch based on the video's specific content.
-4. If you have the video title and description, USE them to create relevant clips.`;
+4. If you have the video title and description, USE them to create relevant clips.
+5. Each clip title MUST reference something specific about THIS video (the topic, people, key phrases, etc.).`;
 
       const userPrompt = hasContent
         ? `Analyze this video and generate 5 viral clip suggestions based on the actual content:\n\nSource URL: ${url}\n\n${contextSection}`
@@ -711,8 +746,13 @@ CRITICAL RULES:
               duration: clip.duration || "0:30",
               viralityScore: clip.viralityScore || 0,
               captions: clip.captions || null,
-              captionStyle: "default",
-              layout: "9:16",
+              captionStyle,
+              captionFont,
+              captionAnimation,
+              captionColor,
+              captionSize,
+              captionPosition,
+              layout: aspectRatio,
               tags: JSON.stringify(clip.tags || []),
             },
           })

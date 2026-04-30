@@ -49,6 +49,10 @@ const TemplatesSection = dynamic(
   () => import("@/components/sections/TemplatesSection").then((m) => ({ default: m.TemplatesSection })),
   { ssr: false }
 );
+const ProcessingSection = dynamic(
+  () => import("@/components/sections/ProcessingSection").then((m) => ({ default: m.ProcessingSection })),
+  { ssr: false }
+);
 const SettingsSection = dynamic(
   () => import("@/components/sections/SettingsSection").then((m) => ({ default: m.SettingsSection })),
   { ssr: false }
@@ -108,6 +112,8 @@ export default function Home() {
     switch (currentView) {
       case "dashboard":
         return user ? <DashboardSection /> : <LandingContent />;
+      case "processing":
+        return user ? <ProcessingSection /> : <LandingContent />;
       case "editor":
         return user ? <ClipEditorSection /> : <LandingContent />;
       case "templates":

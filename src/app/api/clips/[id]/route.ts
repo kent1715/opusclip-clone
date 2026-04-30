@@ -53,6 +53,11 @@ export async function PATCH(
       title,
       captions,
       captionStyle,
+      captionFont,
+      captionAnimation,
+      captionColor,
+      captionSize,
+      captionPosition,
       layout,
       templateId,
       tags,
@@ -105,6 +110,11 @@ export async function PATCH(
     if (title !== undefined) updateData.title = title;
     if (captions !== undefined) updateData.captions = captions;
     if (captionStyle !== undefined) updateData.captionStyle = captionStyle;
+    if (captionFont !== undefined) updateData.captionFont = captionFont;
+    if (captionAnimation !== undefined) updateData.captionAnimation = captionAnimation;
+    if (captionColor !== undefined) updateData.captionColor = captionColor;
+    if (captionSize !== undefined) updateData.captionSize = captionSize;
+    if (captionPosition !== undefined) updateData.captionPosition = captionPosition;
     if (layout !== undefined) updateData.layout = layout;
     if (templateId !== undefined) updateData.templateId = templateId;
     if (tags !== undefined) {
