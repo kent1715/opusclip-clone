@@ -203,6 +203,87 @@ function extractTitleFromUrl(url: string, platform: string): string {
 
 // ─── Fallback Clip Generator ───────────────────────────────────────────────
 
+function generateTranscriptionBasedClips(
+  transcription: TranscriptionResult,
+  videoTitle: string
+): Array<{
+  title: string;
+  startTime: string;
+  duration: string;
+  viralityScore: number;
+  tags: string[];
+  captions: string;
+}> {
+  const segments = transcription.segments;
+  if (segments.length === 0) return [];
+
+  const clips: Array<{
+    title: string;
+    startTime: string;
+    duration: string;
+    viralityScore: number;
+    tags: string[];
+    captions: string;
+  }> = [];
+
+  // Group segments into clips of ~20-40 seconds
+  let clipStart = 0;
+  let clipEnd = 0;
+  let clipSegments: typeof segments = [];
+
+  for (const seg of segments) {
+    if (clipSegments.length === 0) {
+      clipStart = seg.start;
+      clipEnd = seg.end;
+      clipSegments = [seg];
+    } else if (seg.end - clipStart <= 40) {
+      clipEnd = seg.end;
+      clipSegments.push(seg);
+    } else {
+      // Finalize current clip
+      const durationSec = clipEnd - clipStart;
+      if (durationSec >= 10) {
+        const startMin = Math.floor(clipStart / 60);
+        const startSec = Math.floor(clipStart % 60);
+        const captionText = clipSegments.map(s => s.text.trim()).filter(Boolean).join("|");
+        clips.push({
+          title: clipSegments[0].text.trim().substring(0, 60) + (clipSegments[0].text.trim().length > 60 ? "..." : ""),
+          startTime: `${startMin}:${startSec.toString().padStart(2, "0")}`,
+          duration: `0:${Math.floor(durationSec).toString().padStart(2, "0")}`,
+          viralityScore: 85 - Math.min(clips.length * 3, 15),
+          tags: ["transcription", "auto-generated"],
+          captions: captionText || "Auto-transcribed segment",
+        });
+      }
+      // Start new clip
+      clipStart = seg.start;
+      clipEnd = seg.end;
+      clipSegments = [seg];
+    }
+  }
+
+  // Don't forget the last clip
+  if (clipSegments.length > 0) {
+    const durationSec = clipEnd - clipStart;
+    if (durationSec >= 5) {
+      const startMin = Math.floor(clipStart / 60);
+      const startSec = Math.floor(clipStart % 60);
+      const captionText = clipSegments.map(s => s.text.trim()).filter(Boolean).join("|");
+      clips.push({
+        title: clipSegments[0].text.trim().substring(0, 60) + (clipSegments[0].text.trim().length > 60 ? "..." : ""),
+        startTime: `${startMin}:${startSec.toString().padStart(2, "0")}`,
+        duration: `0:${Math.floor(durationSec).toString().padStart(2, "0")}`,
+        viralityScore: 85 - Math.min(clips.length * 3, 15),
+        tags: ["transcription", "auto-generated"],
+        captions: captionText || "Auto-transcribed segment",
+      });
+    }
+  }
+
+  // Limit to top 5 clips
+  return clips.slice(0, 5);
+}
+
 function generateContextualFallbackClips(
   videoTitle: string,
   authorName?: string | null,
@@ -786,11 +867,22 @@ CRITICAL RULES:
     // If AI didn't produce clips, generate fallback based on video title
     updateProgress(video.id, 75, "saving-clips", "Saving generated clips...");
     if (clipsData.length === 0) {
-      clipsData = generateContextualFallbackClips(
-        videoTitle || extractTitleFromUrl(url, platform),
-        videoMeta.authorName,
-        platform
-      );
+      // If we have transcription, use it to create clips with real spoken words
+      if (transcription && transcription.segments.length > 0) {
+        console.log("[process] LLM failed, using transcription-based clips as fallback");
+        clipsData = generateTranscriptionBasedClips(
+          transcription,
+          videoTitle || extractTitleFromUrl(url, platform)
+        );
+      }
+      // If no transcription or transcription-based clips, use generic fallback
+      if (clipsData.length === 0) {
+        clipsData = generateContextualFallbackClips(
+          videoTitle || extractTitleFromUrl(url, platform),
+          videoMeta.authorName,
+          platform
+        );
+      }
     }
 
     // Always create clips

@@ -177,6 +177,8 @@ export async function transcribeVideo(
         await execFileAsync(
           "yt-dlp",
           [
+            "--js-runtimes",
+            "deno",
             "-f",
             "bestaudio",
             "-x",
