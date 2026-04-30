@@ -37,6 +37,13 @@ import {
   Volume2,
   VolumeX,
   Maximize2,
+  Palette,
+  Waves,
+  Highlighter,
+  RotateCcw,
+  Eye,
+  MoveUp,
+  ArrowUpFromLine,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
@@ -58,6 +65,69 @@ import {
   ToggleGroup,
   ToggleGroupItem,
 } from "@/components/ui/toggle-group";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+
+// ─── Caption Style Presets (same as ProcessingSection) ────────────────────
+
+const CAPTION_PRESETS = [
+  { id: "karaoke", name: "Karaoke", textColor: "#4ade80", highlight: true, uppercase: true, bg: "rgba(0,0,0,0.6)" },
+  { id: "deep-diver", name: "Deep Diver", textColor: "#94a3b8", highlight: false, uppercase: false, bg: "rgba(0,0,0,0.5)" },
+  { id: "pod-p", name: "Pod P", textColor: "#f472b6", highlight: false, uppercase: true, bg: "rgba(0,0,0,0.6)" },
+  { id: "popline", name: "Popline", textColor: "#ffffff", highlight: false, uppercase: true, bg: "transparent", outline: true },
+  { id: "seamless-bounce", name: "Seamless Bounce", textColor: "#4ade80", highlight: false, uppercase: false, bg: "rgba(0,0,0,0.4)" },
+  { id: "gradient-wave", name: "Gradient Wave", textColor: "#67e8f9", highlight: false, uppercase: true, bg: "rgba(0,0,0,0.5)" },
+  { id: "beasty", name: "Beasty", textColor: "#d1d5db", highlight: false, uppercase: true, bg: "rgba(0,0,0,0.6)" },
+  { id: "youshaei", name: "Youshaei", textColor: "#5eead4", highlight: true, uppercase: true, bg: "rgba(0,0,0,0.5)" },
+  { id: "mozi", name: "Mozi", textColor: "#86efac", highlight: false, uppercase: true, bg: "rgba(0,0,0,0.5)" },
+  { id: "glitch-infinite", name: "Glitch Infinite", textColor: "#fb923c", highlight: false, uppercase: false, bg: "rgba(0,0,0,0.6)" },
+  { id: "baby-earthquake", name: "Baby Earthquake", textColor: "#fde68a", highlight: false, uppercase: false, bg: "rgba(0,0,0,0.5)" },
+  { id: "neon-pulse", name: "Neon Pulse", textColor: "#e879f9", highlight: false, uppercase: true, bg: "rgba(0,0,0,0.5)" },
+  { id: "default", name: "Default", textColor: "#ffffff", highlight: false, uppercase: false, bg: "rgba(0,0,0,0.6)" },
+  { id: "bold", name: "Bold", textColor: "#ffffff", highlight: false, uppercase: true, bg: "rgba(0,0,0,0.7)" },
+  { id: "outline", name: "Outline", textColor: "#ffffff", highlight: false, uppercase: true, bg: "transparent", outline: true },
+];
+
+// ─── Font Options ────────────────────────────────────────────────────────
+
+const FONT_OPTIONS = [
+  { id: "inter", name: "Inter", family: "'Inter', sans-serif" },
+  { id: "montserrat", name: "Montserrat", family: "'Montserrat', sans-serif" },
+  { id: "poppins", name: "Poppins", family: "'Poppins', sans-serif" },
+  { id: "roboto", name: "Roboto", family: "'Roboto', sans-serif" },
+  { id: "oswald", name: "Oswald", family: "'Oswald', sans-serif" },
+  { id: "bebas", name: "Bebas Neue", family: "'Bebas Neue', sans-serif" },
+  { id: "permanent", name: "Permanent Marker", family: "'Permanent Marker', cursive" },
+  { id: "source-code", name: "Source Code Pro", family: "'Source Code Pro', monospace" },
+];
+
+const ANIMATION_OPTIONS = [
+  { id: "none", name: "None" },
+  { id: "bounce", name: "Bounce" },
+  { id: "wave", name: "Wave" },
+  { id: "fade", name: "Fade In" },
+  { id: "slide-up", name: "Slide Up" },
+  { id: "glitch", name: "Glitch" },
+  { id: "karaoke", name: "Karaoke" },
+  { id: "rotate", name: "Rotate" },
+];
+
+const COLOR_OPTIONS = [
+  { id: "white", name: "White", value: "#ffffff" },
+  { id: "yellow", name: "Yellow", value: "#fde047" },
+  { id: "green", name: "Green", value: "#4ade80" },
+  { id: "cyan", name: "Cyan", value: "#67e8f9" },
+  { id: "blue", name: "Blue", value: "#60a5fa" },
+  { id: "purple", name: "Purple", value: "#c084fc" },
+  { id: "pink", name: "Pink", value: "#f472b6" },
+  { id: "red", name: "Red", value: "#f87171" },
+  { id: "orange", name: "Orange", value: "#fb923c" },
+  { id: "black", name: "Black", value: "#000000" },
+];
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -123,7 +193,6 @@ function parseVideoSource(url: string): VideoSource {
     const urlObj = new URL(url);
     const host = urlObj.hostname.toLowerCase();
 
-    // YouTube
     if (host.includes("youtube.com") || host.includes("youtu.be")) {
       const videoId =
         urlObj.searchParams.get("v") ||
@@ -142,7 +211,6 @@ function parseVideoSource(url: string): VideoSource {
       };
     }
 
-    // Vimeo
     if (host.includes("vimeo.com")) {
       const videoId =
         urlObj.pathname.split("/").filter(Boolean).pop() || null;
@@ -154,26 +222,14 @@ function parseVideoSource(url: string): VideoSource {
       };
     }
 
-    // TikTok
     if (host.includes("tiktok.com")) {
       const parts = urlObj.pathname.split("/").filter(Boolean);
       const videoId = parts.length > 0 ? parts[parts.length - 1] : null;
-      return {
-        platform: "tiktok",
-        videoId,
-        embedUrl: null,
-        thumbnailUrl: null,
-      };
+      return { platform: "tiktok", videoId, embedUrl: null, thumbnailUrl: null };
     }
 
-    // Instagram
     if (host.includes("instagram.com")) {
-      return {
-        platform: "instagram",
-        videoId: null,
-        embedUrl: null,
-        thumbnailUrl: null,
-      };
+      return { platform: "instagram", videoId: null, embedUrl: null, thumbnailUrl: null };
     }
 
     return { platform: "other", videoId: null, embedUrl: null, thumbnailUrl: null };
@@ -182,32 +238,20 @@ function parseVideoSource(url: string): VideoSource {
   }
 }
 
-/**
- * Parse a time string like "1:23" or "0:45" into seconds
- */
 function parseTimeToSeconds(timeStr: string): number {
   if (!timeStr) return 0;
   const parts = timeStr.split(":").map(Number);
-  if (parts.length === 3) {
-    // H:MM:SS
-    return parts[0] * 3600 + parts[1] * 60 + parts[2];
-  } else if (parts.length === 2) {
-    // M:SS
-    return parts[0] * 60 + parts[1];
-  }
+  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  if (parts.length === 2) return parts[0] * 60 + parts[1];
   return 0;
 }
 
-/**
- * Get embed URL with start/end times for a clip
- */
 function getClipEmbedUrl(
   source: VideoSource,
   startTimeStr: string,
   durationStr: string
 ): string | null {
   if (!source.embedUrl) return null;
-
   const startSeconds = parseTimeToSeconds(startTimeStr);
   const durationSeconds = parseTimeToSeconds(durationStr);
   const endSeconds = startSeconds + durationSeconds;
@@ -215,13 +259,11 @@ function getClipEmbedUrl(
   if (source.platform === "youtube") {
     return `${source.embedUrl}?start=${startSeconds}&end=${endSeconds}&autoplay=1&rel=0&modestbranding=1`;
   }
-
   if (source.platform === "vimeo") {
     const mins = Math.floor(startSeconds / 60);
     const secs = startSeconds % 60;
     return `${source.embedUrl}#t=${mins}m${secs}s&autoplay=1`;
   }
-
   return source.embedUrl;
 }
 
@@ -252,7 +294,6 @@ function getScoreBg(score: number): string {
   return "from-red-500/15 to-pink-500/5";
 }
 
-// Generate a pseudo-random gradient for clip thumbnails based on clip id
 function getClipGradient(clipId: string): string {
   const gradients = [
     "from-purple-900/60 via-indigo-900/40 to-pink-900/50",
@@ -271,7 +312,281 @@ function getClipGradient(clipId: string): string {
   return gradients[Math.abs(hash) % gradients.length];
 }
 
-// ─── Clip Card Component (with video playback) ────────────────────────────
+// ─── Auto Caption Overlay Component ───────────────────────────────────────
+
+function parseCaptions(captionsStr: string | null): string[] {
+  if (!captionsStr) return [];
+  return captionsStr.split("|").map((s) => s.trim()).filter(Boolean);
+}
+
+function CaptionOverlay({
+  captions,
+  style,
+  font,
+  animation,
+  color,
+  size,
+  position,
+  isActive,
+}: {
+  captions: string[];
+  style: string;
+  font: string;
+  animation: string;
+  color: string;
+  size: number;
+  position: string;
+  isActive: boolean;
+}) {
+  const [currentLine, setCurrentLine] = useState(0);
+  const [highlightedWord, setHighlightedWord] = useState(0);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const wordIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Get preset for the style
+  const preset = CAPTION_PRESETS.find((p) => p.id === style) || CAPTION_PRESETS.find((p) => p.id === "default")!;
+  const fontOption = FONT_OPTIONS.find((f) => f.id === font) || FONT_OPTIONS[0];
+
+  // Determine effective color: if preset has a color and user hasn't customized, use preset color
+  // But if user selected a custom color (not default white), prefer user color
+  const effectiveColor = color !== "#ffffff" ? color : preset.textColor;
+
+  // Auto-cycle through caption lines
+  useEffect(() => {
+    if (!isActive || captions.length <= 1) {
+      setCurrentLine(0);
+      return;
+    }
+
+    // Each caption line shows for ~3 seconds
+    const lineDuration = 3000;
+    intervalRef.current = setInterval(() => {
+      setCurrentLine((prev) => (prev + 1) % captions.length);
+    }, lineDuration);
+
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [isActive, captions.length]);
+
+  // Karaoke: cycle highlighted word
+  useEffect(() => {
+    if (!isActive || animation !== "karaoke") {
+      setHighlightedWord(0);
+      return;
+    }
+
+    const currentWords = captions[currentLine]?.split(" ") || [];
+    if (currentWords.length <= 1) {
+      setHighlightedWord(0);
+      return;
+    }
+
+    const wordDuration = 3000 / currentWords.length;
+    wordIntervalRef.current = setInterval(() => {
+      setHighlightedWord((prev) => (prev + 1) % currentWords.length);
+    }, wordDuration);
+
+    return () => {
+      if (wordIntervalRef.current) clearInterval(wordIntervalRef.current);
+    };
+  }, [isActive, animation, currentLine, captions]);
+
+  if (!isActive || captions.length === 0) return null;
+
+  const line = captions[currentLine] || "";
+  const words = line.split(" ");
+
+  // Determine position classes
+  const positionClasses =
+    position === "top"
+      ? "top-[12%]"
+      : position === "center"
+      ? "top-[45%] -translate-y-1/2"
+      : "bottom-[15%]";
+
+  // Build caption text based on style
+  const renderCaptionText = () => {
+    const text = preset.uppercase ? line.toUpperCase() : line;
+
+    if (animation === "karaoke" && words.length > 1) {
+      const displayWords = preset.uppercase ? words.map((w) => w.toUpperCase()) : words;
+      return (
+        <span>
+          {displayWords.map((word, i) => (
+            <span
+              key={i}
+              className="inline-block transition-all duration-200"
+              style={{
+                color: i === highlightedWord ? effectiveColor : `${effectiveColor}88`,
+                fontWeight: i === highlightedWord ? 900 : 700,
+                textShadow: i === highlightedWord
+                  ? `0 0 20px ${effectiveColor}66, 0 0 40px ${effectiveColor}33`
+                  : undefined,
+                transform: i === highlightedWord ? "scale(1.1)" : "scale(1)",
+              }}
+            >
+              {word}{" "}
+            </span>
+          ))}
+        </span>
+      );
+    }
+
+    // Highlight style: first word highlighted
+    if (preset.highlight && words.length > 1) {
+      const displayWords = preset.uppercase ? words.map((w) => w.toUpperCase()) : words;
+      return (
+        <span>
+          <span
+            style={{
+              color: effectiveColor,
+              fontWeight: 900,
+              textShadow: `0 0 15px ${effectiveColor}44`,
+            }}
+          >
+            {displayWords[0]}{" "}
+          </span>
+          <span style={{ color: effectiveColor, fontWeight: 700 }}>
+            {displayWords.slice(1).join(" ")}
+          </span>
+        </span>
+      );
+    }
+
+    return text;
+  };
+
+  // Animation variants - using explicit motion.div props
+  const getAnimationVariants = (anim: string) => {
+    switch (anim) {
+      case "bounce":
+        return {
+          initial: { y: 20, opacity: 0 } as const,
+          animate: { y: 0, opacity: 1 } as const,
+          exit: { y: -10, opacity: 0 } as const,
+          transition: { duration: 0.5, ease: "easeOut" as const },
+        };
+      case "wave":
+        return {
+          initial: { opacity: 0 } as const,
+          animate: { opacity: 1 } as const,
+          exit: { opacity: 0 } as const,
+          transition: { duration: 0.3 } as const,
+        };
+      case "fade":
+        return {
+          initial: { opacity: 0 } as const,
+          animate: { opacity: 1 } as const,
+          exit: { opacity: 0 } as const,
+          transition: { duration: 0.3 } as const,
+        };
+      case "slide-up":
+        return {
+          initial: { y: 30, opacity: 0 } as const,
+          animate: { y: 0, opacity: 1 } as const,
+          exit: { y: -15, opacity: 0 } as const,
+          transition: { duration: 0.4, ease: "easeOut" as const },
+        };
+      case "glitch":
+        return {
+          initial: { opacity: 0, x: -2 } as const,
+          animate: { opacity: 1, x: 0 } as const,
+          exit: { opacity: 0, x: 2 } as const,
+          transition: { duration: 0.2 } as const,
+        };
+      case "rotate":
+        return {
+          initial: { rotate: -3, opacity: 0 } as const,
+          animate: { rotate: 0, opacity: 1 } as const,
+          exit: { rotate: 3, opacity: 0 } as const,
+          transition: { duration: 0.3 } as const,
+        };
+      case "karaoke":
+        return {
+          initial: { opacity: 0 } as const,
+          animate: { opacity: 1 } as const,
+          exit: { opacity: 0 } as const,
+          transition: { duration: 0.2 } as const,
+        };
+      default:
+        return {
+          initial: { opacity: 0 } as const,
+          animate: { opacity: 1 } as const,
+          exit: { opacity: 0 } as const,
+          transition: { duration: 0.2 } as const,
+        };
+    }
+  };
+
+  const animProps = getAnimationVariants(animation);
+
+  // Compute font size for the container (scale down for small cards)
+  const fontSize = size;
+
+  // Glitch effect extra style
+  const glitchStyle =
+    animation === "glitch"
+      ? {
+          textShadow: `2px 0 #ff0000, -2px 0 #00ff00, 0 0 4px ${effectiveColor}44`,
+        }
+      : {};
+
+  // Outline style (Popline, Outline)
+  const outlineStyle = preset.outline
+    ? {
+        WebkitTextStroke: `1.5px ${effectiveColor}`,
+        color: "transparent",
+      }
+    : {};
+
+  return (
+    <div className={`absolute left-0 right-0 ${positionClasses} z-20 px-3 pointer-events-none`}>
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={`${currentLine}-${animation}`}
+          {...animProps}
+          className="text-center"
+        >
+          <span
+            className="inline-block px-3 py-1.5 rounded-lg leading-tight"
+            style={{
+              fontFamily: fontOption.family,
+              fontSize: `${fontSize}px`,
+              fontWeight: 800,
+              color: preset.outline ? undefined : effectiveColor,
+              background: preset.bg,
+              WebkitBoxDecorationBreak: "clone",
+              ...glitchStyle,
+              ...outlineStyle,
+            }}
+          >
+            {renderCaptionText()}
+          </span>
+        </motion.div>
+      </AnimatePresence>
+
+      {/* Caption line indicator dots */}
+      {captions.length > 1 && (
+        <div className="flex items-center justify-center gap-1 mt-2">
+          {captions.map((_, i) => (
+            <div
+              key={i}
+              className="rounded-full transition-all duration-300"
+              style={{
+                width: i === currentLine ? 12 : 4,
+                height: 4,
+                background: i === currentLine ? effectiveColor : "rgba(255,255,255,0.3)",
+              }}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Clip Card Component (with video playback + captions) ─────────────────
 
 function ClipCard({
   clip,
@@ -292,13 +607,11 @@ function ClipCard({
   const gradient = getClipGradient(clip.id);
   const [isPlaying, setIsPlaying] = useState(false);
   const [imgError, setImgError] = useState(false);
+  const [showCaptions, setShowCaptions] = useState(true);
 
-  // Use video's actual thumbnail or fallback to YouTube thumbnail from source
-  const thumbnailUrl =
-    videoThumbnail || videoSource.thumbnailUrl;
-
-  // Get embed URL for this clip
+  const thumbnailUrl = videoThumbnail || videoSource.thumbnailUrl;
   const embedUrl = getClipEmbedUrl(videoSource, clip.startTime, clip.duration);
+  const captionLines = parseCaptions(clip.captions);
 
   const handlePlay = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -311,6 +624,14 @@ function ClipCard({
     e.stopPropagation();
     setIsPlaying(false);
   };
+
+  const toggleCaptions = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowCaptions(!showCaptions);
+  };
+
+  // Scale font size for the card (smaller than detail panel)
+  const cardFontSize = Math.max(10, Math.round(clip.captionSize * 0.45));
 
   return (
     <motion.div
@@ -327,7 +648,7 @@ function ClipCard({
       {/* Thumbnail / Video Player */}
       <div className="relative aspect-[9/16] sm:aspect-[9/14] bg-black overflow-hidden">
         {isPlaying && embedUrl ? (
-          /* ─── Embedded Video Player ─── */
+          /* ─── Embedded Video Player with Caption Overlay ─── */
           <div className="absolute inset-0">
             <iframe
               src={embedUrl}
@@ -337,18 +658,48 @@ function ClipCard({
               title={clip.title}
               style={{ border: "none" }}
             />
-            {/* Close player button */}
-            <button
-              onClick={handleStop}
-              className="absolute top-2 right-2 z-10 w-7 h-7 rounded-full bg-black/70 backdrop-blur-sm flex items-center justify-center text-white/80 hover:text-white hover:bg-black/90 transition-colors"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
+
+            {/* Auto Caption Overlay */}
+            {showCaptions && captionLines.length > 0 && (
+              <CaptionOverlay
+                captions={captionLines}
+                style={clip.captionStyle}
+                font={clip.captionFont}
+                animation={clip.captionAnimation}
+                color={clip.captionColor}
+                size={cardFontSize}
+                position={clip.captionPosition}
+                isActive={isPlaying}
+              />
+            )}
+
+            {/* Controls overlay */}
+            <div className="absolute top-2 right-2 z-30 flex items-center gap-1.5">
+              {/* Caption toggle */}
+              {captionLines.length > 0 && (
+                <button
+                  onClick={toggleCaptions}
+                  className={`w-7 h-7 rounded-full backdrop-blur-sm flex items-center justify-center transition-colors ${
+                    showCaptions
+                      ? "bg-pink-500/70 text-white"
+                      : "bg-black/50 text-white/50 hover:text-white/80"
+                  }`}
+                >
+                  <Type className="w-3.5 h-3.5" />
+                </button>
+              )}
+              {/* Close player */}
+              <button
+                onClick={handleStop}
+                className="w-7 h-7 rounded-full bg-black/70 backdrop-blur-sm flex items-center justify-center text-white/80 hover:text-white hover:bg-black/90 transition-colors"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
         ) : (
-          /* ─── Thumbnail with Play Button ─── */
+          /* ─── Thumbnail with Play Button + Caption Preview ─── */
           <>
-            {/* Video thumbnail image or gradient fallback */}
             {thumbnailUrl && !imgError ? (
               <img
                 src={thumbnailUrl}
@@ -361,10 +712,34 @@ function ClipCard({
               <div className={`absolute inset-0 bg-gradient-to-br ${gradient}`} />
             )}
 
-            {/* Dark overlay */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
 
-            {/* Content overlay on thumbnail */}
+            {/* Caption preview on thumbnail (first line) */}
+            {captionLines.length > 0 && (
+              <div className={`absolute left-0 right-0 ${clip.captionPosition === "top" ? "top-[15%]" : clip.captionPosition === "center" ? "top-[45%]" : "bottom-[18%]"} px-2 z-5 pointer-events-none`}>
+                <p
+                  className="text-center leading-tight"
+                  style={{
+                    fontFamily: FONT_OPTIONS.find((f) => f.id === clip.captionFont)?.family || "'Inter', sans-serif",
+                    fontSize: `${Math.max(8, cardFontSize * 0.7)}px`,
+                    fontWeight: 800,
+                    color: clip.captionColor !== "#ffffff" ? clip.captionColor : (CAPTION_PRESETS.find((p) => p.id === clip.captionStyle)?.textColor || "#ffffff"),
+                    textShadow: "0 1px 3px rgba(0,0,0,0.8)",
+                    background: CAPTION_PRESETS.find((p) => p.id === clip.captionStyle)?.bg || "rgba(0,0,0,0.5)",
+                    display: "inline",
+                    WebkitBoxDecorationBreak: "clone",
+                    padding: "2px 6px",
+                    borderRadius: "4px",
+                  }}
+                >
+                  {CAPTION_PRESETS.find((p) => p.id === clip.captionStyle)?.uppercase
+                    ? captionLines[0].toUpperCase()
+                    : captionLines[0]}
+                </p>
+              </div>
+            )}
+
+            {/* Content overlay */}
             <div className="absolute top-3 left-3 right-3">
               <div className="bg-white/95 backdrop-blur-sm rounded-md px-2 py-1.5 max-w-[85%]">
                 <p className="text-[11px] font-semibold text-black leading-tight line-clamp-2">
@@ -373,7 +748,7 @@ function ClipCard({
               </div>
             </div>
 
-            {/* Timestamp overlay - top right */}
+            {/* Timestamp */}
             <div className="absolute top-3 right-3">
               <div className="bg-black/70 backdrop-blur-sm rounded px-1.5 py-0.5">
                 <span className="text-[10px] font-medium text-white/80 tabular-nums">
@@ -382,7 +757,7 @@ function ClipCard({
               </div>
             </div>
 
-            {/* Play button overlay - clickable to start video */}
+            {/* Play button */}
             <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
               {embedUrl ? (
                 <button
@@ -398,7 +773,7 @@ function ClipCard({
               )}
             </div>
 
-            {/* Always-visible small play button for quick access */}
+            {/* Always-visible play button */}
             {embedUrl && !isPlaying && (
               <button
                 onClick={handlePlay}
@@ -408,7 +783,17 @@ function ClipCard({
               </button>
             )}
 
-            {/* Score badge - bottom */}
+            {/* Caption style badge */}
+            {clip.captionStyle && clip.captionStyle !== "default" && (
+              <div className="absolute bottom-14 right-3">
+                <Badge className="bg-black/50 backdrop-blur-sm text-white/60 text-[8px] border-white/10">
+                  <Type className="w-2.5 h-2.5 mr-0.5" />
+                  {clip.captionStyle}
+                </Badge>
+              </div>
+            )}
+
+            {/* Score badge */}
             <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/90 via-black/50 to-transparent">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -434,7 +819,7 @@ function ClipCard({
         )}
       </div>
 
-      {/* Card Footer - Title + Tags */}
+      {/* Card Footer */}
       <div className="bg-[#0a0a0f] border-t border-white/5 p-3">
         <p className="text-sm font-semibold text-white/90 leading-tight line-clamp-2 mb-2">
           {clip.title}
@@ -459,7 +844,7 @@ function ClipCard({
   );
 }
 
-// ─── Clip Video Player Component ─────────────────────────────────────────
+// ─── Clip Video Player Component (with captions) ─────────────────────────
 
 function ClipVideoPlayer({
   clip,
@@ -472,11 +857,14 @@ function ClipVideoPlayer({
 }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [imgError, setImgError] = useState(false);
+  const [showCaptions, setShowCaptions] = useState(true);
 
   const thumbnailUrl = videoThumbnail || videoSource.thumbnailUrl;
   const embedUrl = getClipEmbedUrl(videoSource, clip.startTime, clip.duration);
-  const startSeconds = parseTimeToSeconds(clip.startTime);
-  const endSeconds = startSeconds + parseTimeToSeconds(clip.duration);
+  const captionLines = parseCaptions(clip.captions);
+
+  // Scale font size for the detail panel
+  const panelFontSize = Math.max(12, Math.round(clip.captionSize * 0.65));
 
   if (isPlaying && embedUrl) {
     return (
@@ -489,19 +877,48 @@ function ClipVideoPlayer({
           title={clip.title}
           style={{ border: "none" }}
         />
-        <button
-          onClick={() => setIsPlaying(false)}
-          className="absolute top-2 right-2 z-10 w-7 h-7 rounded-full bg-black/70 backdrop-blur-sm flex items-center justify-center text-white/80 hover:text-white hover:bg-black/90 transition-colors"
-        >
-          <X className="w-3.5 h-3.5" />
-        </button>
+
+        {/* Auto Caption Overlay */}
+        {showCaptions && captionLines.length > 0 && (
+          <CaptionOverlay
+            captions={captionLines}
+            style={clip.captionStyle}
+            font={clip.captionFont}
+            animation={clip.captionAnimation}
+            color={clip.captionColor}
+            size={panelFontSize}
+            position={clip.captionPosition}
+            isActive={isPlaying}
+          />
+        )}
+
+        {/* Controls */}
+        <div className="absolute top-2 right-2 z-30 flex items-center gap-1.5">
+          {captionLines.length > 0 && (
+            <button
+              onClick={() => setShowCaptions(!showCaptions)}
+              className={`w-7 h-7 rounded-full backdrop-blur-sm flex items-center justify-center transition-colors ${
+                showCaptions
+                  ? "bg-pink-500/70 text-white"
+                  : "bg-black/50 text-white/50 hover:text-white/80"
+              }`}
+            >
+              <Type className="w-3.5 h-3.5" />
+            </button>
+          )}
+          <button
+            onClick={() => setIsPlaying(false)}
+            className="w-7 h-7 rounded-full bg-black/70 backdrop-blur-sm flex items-center justify-center text-white/80 hover:text-white hover:bg-black/90 transition-colors"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="relative aspect-[9/16] max-h-[320px] rounded-lg overflow-hidden bg-black border border-white/5 cursor-pointer group" onClick={() => embedUrl && setIsPlaying(true)}>
-      {/* Thumbnail */}
       {thumbnailUrl && !imgError ? (
         <img
           src={thumbnailUrl}
@@ -513,8 +930,32 @@ function ClipVideoPlayer({
         <div className="absolute inset-0 bg-gradient-to-br from-purple-900/30 via-[#0d0d18] to-pink-900/20" />
       )}
 
-      {/* Overlay gradient */}
       <div className="absolute inset-0 bg-black/30 group-hover:bg-black/20 transition-colors" />
+
+      {/* Caption preview on thumbnail */}
+      {captionLines.length > 0 && (
+        <div className={`absolute left-0 right-0 ${clip.captionPosition === "top" ? "top-[15%]" : clip.captionPosition === "center" ? "top-[45%]" : "bottom-[15%]"} px-3 z-5 pointer-events-none`}>
+          <p
+            className="text-center leading-tight"
+            style={{
+              fontFamily: FONT_OPTIONS.find((f) => f.id === clip.captionFont)?.family || "'Inter', sans-serif",
+              fontSize: `${panelFontSize * 0.8}px`,
+              fontWeight: 800,
+              color: clip.captionColor !== "#ffffff" ? clip.captionColor : (CAPTION_PRESETS.find((p) => p.id === clip.captionStyle)?.textColor || "#ffffff"),
+              textShadow: "0 1px 4px rgba(0,0,0,0.9)",
+              background: CAPTION_PRESETS.find((p) => p.id === clip.captionStyle)?.bg || "rgba(0,0,0,0.5)",
+              display: "inline",
+              WebkitBoxDecorationBreak: "clone",
+              padding: "3px 8px",
+              borderRadius: "6px",
+            }}
+          >
+            {CAPTION_PRESETS.find((p) => p.id === clip.captionStyle)?.uppercase
+              ? captionLines[0].toUpperCase()
+              : captionLines[0]}
+          </p>
+        </div>
+      )}
 
       {/* Center play button */}
       <div className="absolute inset-0 flex items-center justify-center">
@@ -546,35 +987,33 @@ function ClipVideoPlayer({
         </span>
       </div>
 
-      {/* Platform indicator */}
-      {videoSource.platform !== "other" && (
-        <div className="absolute bottom-3 right-3">
+      {/* Platform & caption indicators */}
+      <div className="absolute bottom-3 right-3 flex items-center gap-1">
+        {clip.captionStyle && clip.captionStyle !== "default" && (
+          <Badge className="bg-black/50 backdrop-blur-sm text-white/60 text-[9px] border-white/10">
+            <Type className="w-2.5 h-2.5 mr-0.5" />
+            {clip.captionStyle}
+          </Badge>
+        )}
+        {videoSource.platform !== "other" && (
           <Badge className="bg-black/50 backdrop-blur-sm text-white/60 text-[9px] border-white/10 capitalize">
             {videoSource.platform}
           </Badge>
-        </div>
-      )}
+        )}
+      </div>
 
-      {/* Cannot play indicator */}
       {!embedUrl && (
         <div className="absolute top-2 right-2">
-          <a
-            href={clip.videoId ? undefined : "#"}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30 text-[9px]">
-              Preview not available
-            </Badge>
-          </a>
+          <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30 text-[9px]">
+            Preview not available
+          </Badge>
         </div>
       )}
     </div>
   );
 }
 
-// ─── Clip Detail Panel (Slide-in from right) ────────────────────────────────
+// ─── Clip Detail Panel (with caption editing) ────────────────────────────────
 
 function ClipDetailPanel({
   clip,
@@ -629,6 +1068,7 @@ function ClipDetailPanel({
   const [newTag, setNewTag] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showCaptionCustomizer, setShowCaptionCustomizer] = useState(false);
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -669,13 +1109,19 @@ function ClipDetailPanel({
     setNewTag("");
   };
 
+  // Live caption preview
+  const previewLines = parseCaptions(editCaptions);
+  const previewFont = FONT_OPTIONS.find((f) => f.id === editCaptionFont) || FONT_OPTIONS[0];
+  const previewPreset = CAPTION_PRESETS.find((p) => p.id === editCaptionStyle) || CAPTION_PRESETS.find((p) => p.id === "default")!;
+  const previewColor = editCaptionColor !== "#ffffff" ? editCaptionColor : previewPreset.textColor;
+
   return (
     <motion.div
       initial={{ x: "100%" }}
       animate={{ x: 0 }}
       exit={{ x: "100%" }}
       transition={{ type: "spring", damping: 25, stiffness: 200 }}
-      className="fixed right-0 top-0 bottom-0 w-full sm:w-[400px] bg-[#0d0d14] border-l border-white/5 z-50 flex flex-col overflow-hidden"
+      className="fixed right-0 top-0 bottom-0 w-full sm:w-[420px] bg-[#0d0d14] border-l border-white/5 z-50 flex flex-col overflow-hidden"
     >
       {/* Panel Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-white/5 bg-[#0a0a0f]">
@@ -755,45 +1201,276 @@ function ClipDetailPanel({
             </div>
           </div>
 
-          {/* Open in YouTube / Source Link */}
+          {/* Open Source Link */}
           {videoSource.embedUrl && (
-            <div className="flex gap-2">
-              <a
-                href={`${videoSource.embedUrl.replace("/embed/", "/watch?v=")}&t=${parseTimeToSeconds(clip.startTime)}s`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex-1"
+            <a
+              href={`${videoSource.embedUrl.replace("/embed/", "/watch?v=")}&t=${parseTimeToSeconds(clip.startTime)}s`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full bg-white/[0.03] border-white/10 text-white/70 text-xs hover:bg-white/[0.06] hover:text-white"
               >
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full bg-white/[0.03] border-white/10 text-white/70 text-xs hover:bg-white/[0.06] hover:text-white"
-                >
-                  <ExternalLink className="w-3.5 h-3.5 mr-1.5" />
-                  Open on {videoSource.platform === "youtube" ? "YouTube" : videoSource.platform === "vimeo" ? "Vimeo" : "Source"}
-                </Button>
-              </a>
-            </div>
+                <ExternalLink className="w-3.5 h-3.5 mr-1.5" />
+                Open on {videoSource.platform === "youtube" ? "YouTube" : videoSource.platform === "vimeo" ? "Vimeo" : "Source"}
+              </Button>
+            </a>
           )}
 
-          {/* Caption Style */}
-          <div className="space-y-1.5">
-            <Label className="text-xs text-white/50">Caption Style</Label>
-            <Select
-              value={editCaptionStyle}
-              onValueChange={(val) => setEditCaptionStyle(val as CaptionStyle)}
+          <Separator className="bg-white/5" />
+
+          {/* ═══════════════════════════════════════════════════════════════ */}
+          {/* CAPTION SECTION - Full customization                              */}
+          {/* ═══════════════════════════════════════════════════════════════ */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Palette className="w-4 h-4 text-pink-400" />
+              <h3 className="text-sm font-semibold text-white/80">Caption Style</h3>
+            </div>
+
+            {/* Caption Presets Grid */}
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5">
+              {CAPTION_PRESETS.map((preset) => (
+                <button
+                  key={preset.id}
+                  onClick={() => setEditCaptionStyle(preset.id as CaptionStyle)}
+                  className={`relative rounded-lg overflow-hidden border transition-all ${
+                    editCaptionStyle === preset.id
+                      ? "border-white/40 ring-1 ring-white/20"
+                      : "border-white/5 hover:border-white/15"
+                  }`}
+                >
+                  <div className="aspect-[9/12] bg-black flex items-center justify-center p-1.5 relative">
+                    <span
+                      className="text-[8px] font-bold leading-tight text-center"
+                      style={{
+                        color: preset.textColor,
+                        WebkitTextStroke: preset.outline ? '0.5px white' : undefined,
+                      }}
+                    >
+                      {preset.uppercase ? "TO GET STARTED" : "To get started"}
+                    </span>
+                    {editCaptionStyle === preset.id && (
+                      <div className="absolute top-0.5 left-0.5 w-3.5 h-3.5 rounded-full bg-white flex items-center justify-center">
+                        <Check className="w-2 h-2 text-black" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="py-1 px-0.5 bg-[#0d0d14] text-center">
+                    <span className="text-[8px] text-white/50">{preset.name}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            {/* Live Caption Preview */}
+            <div className="relative aspect-[9/16] max-h-[160px] rounded-lg overflow-hidden bg-gradient-to-br from-gray-900 via-[#0d0d18] to-gray-900 border border-white/5 mx-auto max-w-[100px]">
+              {previewLines.length > 0 ? (
+                <div className={`absolute left-0 right-0 ${editCaptionPosition === "top" ? "top-[15%]" : editCaptionPosition === "center" ? "top-[45%]" : "bottom-[15%]"} px-2`}>
+                  <p
+                    className="text-center leading-tight"
+                    style={{
+                      fontFamily: previewFont.family,
+                      fontSize: `${Math.max(8, editCaptionSize * 0.35)}px`,
+                      fontWeight: 800,
+                      color: previewColor,
+                      background: previewPreset.bg,
+                      display: "inline",
+                      WebkitBoxDecorationBreak: "clone",
+                      padding: "1px 4px",
+                      borderRadius: "3px",
+                    }}
+                  >
+                    {previewPreset.uppercase ? previewLines[0].toUpperCase() : previewLines[0]}
+                  </p>
+                </div>
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="text-[9px] text-white/20">No captions</span>
+                </div>
+              )}
+            </div>
+
+            {/* Captions Text Input */}
+            <div className="space-y-1.5">
+              <Label className="text-xs text-white/50">Captions (pipe | separated for auto-cycle)</Label>
+              <Textarea
+                value={editCaptions}
+                onChange={(e) => setEditCaptions(e.target.value)}
+                rows={3}
+                className="bg-white/[0.03] border-white/10 text-white text-sm resize-none focus-visible:border-pink-500/50 focus-visible:ring-pink-500/20"
+                placeholder="Line 1 | Line 2 | Line 3"
+              />
+              <p className="text-[10px] text-white/25">
+                Separate lines with | to auto-cycle during playback. Each line shows ~3 seconds.
+              </p>
+            </div>
+
+            {/* Caption Customization Toggle */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowCaptionCustomizer(!showCaptionCustomizer)}
+              className="w-full text-xs text-white/40 hover:text-white/70 hover:bg-white/5 h-7"
             >
-              <SelectTrigger className="bg-white/[0.03] border-white/10 text-white text-sm w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-[#1a1a2e] border-white/10">
-                <SelectItem value="default" className="text-white/80 focus:bg-white/10 focus:text-white">Default</SelectItem>
-                <SelectItem value="bold" className="text-white/80 focus:bg-white/10 focus:text-white">Bold</SelectItem>
-                <SelectItem value="karaoke" className="text-white/80 focus:bg-white/10 focus:text-white">Karaoke</SelectItem>
-                <SelectItem value="outline" className="text-white/80 focus:bg-white/10 focus:text-white">Outline</SelectItem>
-              </SelectContent>
-            </Select>
+              {showCaptionCustomizer ? "Hide" : "Show"} customization options
+              <ChevronDown className={`w-3 h-3 ml-1 transition-transform ${showCaptionCustomizer ? "rotate-180" : ""}`} />
+            </Button>
+
+            <AnimatePresence>
+              {showCaptionCustomizer && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="space-y-4 overflow-hidden"
+                >
+                  {/* Font Selection */}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-1.5">
+                      <Type className="w-3 h-3 text-white/40" />
+                      <Label className="text-[11px] text-white/50 font-medium">Font</Label>
+                    </div>
+                    <div className="grid grid-cols-4 gap-1">
+                      {FONT_OPTIONS.map((font) => (
+                        <button
+                          key={font.id}
+                          onClick={() => setEditCaptionFont(font.id)}
+                          className={`relative rounded-md py-1.5 px-1 text-center border transition-all ${
+                            editCaptionFont === font.id
+                              ? "border-white/30 bg-white/10 text-white"
+                              : "border-white/5 bg-white/[0.02] text-white/40 hover:border-white/10 hover:text-white/60"
+                          }`}
+                        >
+                          <span className="text-[10px] font-medium block" style={{ fontFamily: font.family }}>
+                            Aa
+                          </span>
+                          <span className="text-[7px] block mt-0.5 truncate">{font.name}</span>
+                          {editCaptionFont === font.id && (
+                            <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-white flex items-center justify-center">
+                              <Check className="w-1.5 h-1.5 text-black" />
+                            </div>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Animation Selection */}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-1.5">
+                      <Waves className="w-3 h-3 text-white/40" />
+                      <Label className="text-[11px] text-white/50 font-medium">Animation</Label>
+                    </div>
+                    <div className="grid grid-cols-4 gap-1">
+                      {ANIMATION_OPTIONS.map((anim) => (
+                        <TooltipProvider key={anim.id}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                onClick={() => setEditCaptionAnimation(anim.id)}
+                                className={`relative rounded-md py-1.5 px-1 text-center border transition-all flex flex-col items-center gap-0.5 ${
+                                  editCaptionAnimation === anim.id
+                                    ? "border-white/30 bg-white/10 text-white"
+                                    : "border-white/5 bg-white/[0.02] text-white/40 hover:border-white/10 hover:text-white/60"
+                                }`}
+                              >
+                                <span className="text-[10px]">{anim.name}</span>
+                                {editCaptionAnimation === anim.id && (
+                                  <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-white flex items-center justify-center">
+                                    <Check className="w-1.5 h-1.5 text-black" />
+                                  </div>
+                                )}
+                              </button>
+                            </TooltipTrigger>
+                          </Tooltip>
+                        </TooltipProvider>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Color Selection */}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-1.5">
+                      <Palette className="w-3 h-3 text-white/40" />
+                      <Label className="text-[11px] text-white/50 font-medium">Color</Label>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {COLOR_OPTIONS.map((colorOpt) => (
+                        <button
+                          key={colorOpt.id}
+                          onClick={() => setEditCaptionColor(colorOpt.value)}
+                          className={`relative w-7 h-7 rounded-full border-2 transition-all ${
+                            editCaptionColor === colorOpt.value
+                              ? "border-white scale-110"
+                              : "border-white/10 hover:border-white/30 hover:scale-105"
+                          }`}
+                          style={{ backgroundColor: colorOpt.value }}
+                          title={colorOpt.name}
+                        >
+                          {editCaptionColor === colorOpt.value && (
+                            <Check className="w-3 h-3 text-white absolute inset-0 m-auto" style={{ color: colorOpt.value === "#ffffff" || colorOpt.value === "#fde047" ? "#000" : "#fff" }} />
+                          )}
+                        </button>
+                      ))}
+                      {/* Custom color picker */}
+                      <div className="relative">
+                        <input
+                          type="color"
+                          value={editCaptionColor}
+                          onChange={(e) => setEditCaptionColor(e.target.value)}
+                          className="absolute inset-0 w-7 h-7 opacity-0 cursor-pointer"
+                        />
+                        <div className="w-7 h-7 rounded-full border-2 border-dashed border-white/20 flex items-center justify-center hover:border-white/40 transition-colors">
+                          <Plus className="w-3 h-3 text-white/40" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Position Selection */}
+                  <div className="space-y-2">
+                    <Label className="text-[11px] text-white/50 font-medium">Position</Label>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {(["top", "center", "bottom"] as const).map((pos) => (
+                        <button
+                          key={pos}
+                          onClick={() => setEditCaptionPosition(pos)}
+                          className={`py-1.5 px-2 rounded-md border text-[10px] font-medium capitalize transition-all ${
+                            editCaptionPosition === pos
+                              ? "border-pink-500/50 bg-pink-500/20 text-pink-300"
+                              : "border-white/5 bg-white/[0.02] text-white/40 hover:border-white/10 hover:text-white/60"
+                          }`}
+                        >
+                          {pos}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Size Slider */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-[11px] text-white/50 font-medium">Size</Label>
+                      <span className="text-[10px] text-white/40 tabular-nums">{editCaptionSize}px</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={12}
+                      max={48}
+                      value={editCaptionSize}
+                      onChange={(e) => setEditCaptionSize(Number(e.target.value))}
+                      className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-pink-500"
+                    />
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
+
+          <Separator className="bg-white/5" />
 
           {/* Layout Toggle */}
           <div className="space-y-1.5">
@@ -809,18 +1486,6 @@ function ClipDetailPanel({
                 <Monitor className="w-3.5 h-3.5 mr-1" />16:9
               </ToggleGroupItem>
             </ToggleGroup>
-          </div>
-
-          {/* Captions */}
-          <div className="space-y-1.5">
-            <Label className="text-xs text-white/50">Captions (pipe | separated)</Label>
-            <Textarea
-              value={editCaptions}
-              onChange={(e) => setEditCaptions(e.target.value)}
-              rows={3}
-              className="bg-white/[0.03] border-white/10 text-white text-sm resize-none focus-visible:border-pink-500/50 focus-visible:ring-pink-500/20"
-              placeholder="Line 1 | Line 2 | Line 3"
-            />
           </div>
 
           {/* Tags */}
@@ -918,21 +1583,15 @@ export function ClipEditorSection() {
   const { user, activeVideoId, activeClipId, setActiveClipId, setCurrentView } =
     useAppStore();
 
-  // Data state
   const [clips, setClips] = useState<ClipData[]>([]);
   const [video, setVideo] = useState<VideoData | null>(null);
   const [templates, setTemplates] = useState<TemplateData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
-
-  // Sort/filter state
   const [sortBy, setSortBy] = useState<"score" | "time" | "newest">("score");
   const [showDetailPanel, setShowDetailPanel] = useState(false);
 
-  // Parse video source once when video changes
   const videoSource = video?.sourceUrl ? parseVideoSource(video.sourceUrl) : { platform: "other" as const, videoId: null, embedUrl: null, thumbnailUrl: null };
-
-  // ─── Data Fetching ───────────────────────────────────────────────────────
 
   const fetchVideo = useCallback(async () => {
     if (!activeVideoId) return;
@@ -945,7 +1604,7 @@ export function ClipEditorSection() {
     } catch (err) {
       console.error("Failed to fetch video:", err);
     }
-  }, [activeVideoId]); // intentionally not depending on user?.id to avoid infinite loops
+  }, [activeVideoId]);
 
   const fetchClips = useCallback(async () => {
     if (!activeVideoId) return;
@@ -995,12 +1654,9 @@ export function ClipEditorSection() {
     if (activeVideoId) load();
   }, [activeVideoId, fetchVideo, fetchClips, fetchTemplates]);
 
-  // Close detail panel when activeClipId is cleared
   useEffect(() => {
     if (!activeClipId) setShowDetailPanel(false);
   }, [activeClipId]);
-
-  // ─── Sorted clips ────────────────────────────────────────────────────────
 
   const sortedClips = [...clips].sort((a, b) => {
     switch (sortBy) {
@@ -1015,8 +1671,6 @@ export function ClipEditorSection() {
     }
   });
 
-  // ─── Actions ─────────────────────────────────────────────────────────────
-
   const handleExportAll = useCallback(async () => {
     if (clips.length === 0) return;
     setIsExporting(true);
@@ -1028,6 +1682,9 @@ export function ClipEditorSection() {
         viralityScore: clip.viralityScore,
         captions: clip.captions,
         captionStyle: clip.captionStyle,
+        captionFont: clip.captionFont,
+        captionAnimation: clip.captionAnimation,
+        captionColor: clip.captionColor,
         layout: clip.layout,
         tags: parseTags(clip.tags),
       }));
@@ -1128,19 +1785,13 @@ export function ClipEditorSection() {
 
   const selectedClip = clips.find((c) => c.id === activeClipId) || null;
 
-  // ─── Render ──────────────────────────────────────────────────────────────
-
   if (!activeVideoId) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
           <Film className="w-16 h-16 text-white/20 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-white/60 mb-2">
-            No Video Selected
-          </h2>
-          <p className="text-white/40 mb-6">
-            Select a video from your dashboard to start editing clips
-          </p>
+          <h2 className="text-xl font-semibold text-white/60 mb-2">No Video Selected</h2>
+          <p className="text-white/40 mb-6">Select a video from your dashboard to start editing clips</p>
           <Button
             onClick={() => setCurrentView("dashboard")}
             className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white border-0"
@@ -1165,7 +1816,7 @@ export function ClipEditorSection() {
 
   return (
     <div className="min-h-screen bg-black relative">
-      {/* ─── Header Bar ──────────────────────────────────────────────── */}
+      {/* Header Bar */}
       <div className="sticky top-0 z-40 flex items-center justify-between px-4 sm:px-6 py-3 border-b border-white/5 bg-black/90 backdrop-blur-xl">
         <div className="flex items-center gap-3">
           <Button
@@ -1188,50 +1839,32 @@ export function ClipEditorSection() {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Platform badge */}
           {videoSource.platform !== "other" && (
             <Badge className="bg-white/5 text-white/50 border-white/10 text-[10px] capitalize hidden sm:inline-flex">
               {videoSource.platform}
             </Badge>
           )}
-
-          {/* Sort button */}
           <Select value={sortBy} onValueChange={(val) => setSortBy(val as "score" | "time" | "newest")}>
             <SelectTrigger className="h-8 w-auto gap-1 bg-white/[0.03] border-white/10 text-white/60 text-xs hover:bg-white/[0.06] hover:text-white/80">
               <ArrowUpDown className="w-3.5 h-3.5" />
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="bg-[#1a1a2e] border-white/10">
-              <SelectItem value="score" className="text-white/80 focus:bg-white/10 focus:text-white text-xs">
-                By Score
-              </SelectItem>
-              <SelectItem value="time" className="text-white/80 focus:bg-white/10 focus:text-white text-xs">
-                By Time
-              </SelectItem>
-              <SelectItem value="newest" className="text-white/80 focus:bg-white/10 focus:text-white text-xs">
-                Newest First
-              </SelectItem>
+              <SelectItem value="score" className="text-white/80 focus:bg-white/10 focus:text-white text-xs">By Score</SelectItem>
+              <SelectItem value="time" className="text-white/80 focus:bg-white/10 focus:text-white text-xs">By Time</SelectItem>
+              <SelectItem value="newest" className="text-white/80 focus:bg-white/10 focus:text-white text-xs">Newest First</SelectItem>
             </SelectContent>
           </Select>
-
           <Separator orientation="vertical" className="h-5 bg-white/10 hidden sm:block" />
-
-          {/* Export button */}
           <Button
             size="sm"
             onClick={handleExportAll}
             disabled={isExporting || clips.length === 0}
             className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white border-0 shadow-lg shadow-pink-500/20 disabled:opacity-50 text-xs"
           >
-            {isExporting ? (
-              <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
-            ) : (
-              <Download className="w-3.5 h-3.5 mr-1" />
-            )}
+            {isExporting ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Download className="w-3.5 h-3.5 mr-1" />}
             <span className="hidden sm:inline">{isExporting ? "Exporting..." : "Export All"}</span>
           </Button>
-
-          {/* Process Another */}
           <Button
             variant="ghost"
             size="sm"
@@ -1244,7 +1877,7 @@ export function ClipEditorSection() {
         </div>
       </div>
 
-      {/* ─── Clip Gallery Grid ──────────────────────────────────────────── */}
+      {/* Clip Gallery Grid */}
       <div className="px-4 sm:px-6 lg:px-8 py-6">
         {clips.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20">
@@ -1271,11 +1904,10 @@ export function ClipEditorSection() {
         )}
       </div>
 
-      {/* ─── Clip Detail Side Panel ──────────────────────────────────────── */}
+      {/* Clip Detail Side Panel */}
       <AnimatePresence>
         {showDetailPanel && selectedClip && (
           <>
-            {/* Backdrop */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
