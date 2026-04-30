@@ -9,6 +9,7 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: [
     ".space-z.ai",
     ".z.ai",
+    "18.221.5.26",
   ],
 };
 
