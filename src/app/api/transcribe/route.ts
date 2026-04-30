@@ -53,16 +53,27 @@ export async function POST(request: Request) {
       }
 
       // Download from URL using yt-dlp
-      await execFileAsync("yt-dlp", [
+      const ytDlpArgs = [
         "--js-runtimes", "deno",
         "--extractor-args", "youtube:player_client=web,mweb",
+      ];
+
+      // Use cookies file if available (bypasses YouTube bot detection on server IPs)
+      const cookiesPath = join(/*turbopackIgnore: true*/ process.cwd(), "cookies.txt");
+      if (existsSync(cookiesPath)) {
+        ytDlpArgs.push("--cookies", cookiesPath);
+      }
+
+      ytDlpArgs.push(
         "-f", "bestaudio",
         "-x", "--audio-format", "wav",
         "-o", sourceFile,
         "--no-playlist",
         "--max-filesize", "200M",
         videoUrl,
-      ], { timeout: 180000 });
+      );
+
+      await execFileAsync("yt-dlp", ytDlpArgs, { timeout: 180000 });
 
       if (!existsSync(sourceFile)) {
         // Try without extension change

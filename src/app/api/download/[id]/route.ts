@@ -48,15 +48,26 @@ export async function GET(
 
     try {
       // Step 1: Download source video using yt-dlp
-      await execFileAsync("yt-dlp", [
+      const ytDlpArgs = [
         "--js-runtimes", "deno",
         "--extractor-args", "youtube:player_client=web,mweb",
+      ];
+
+      // Use cookies file if available (bypasses YouTube bot detection on server IPs)
+      const cookiesPath = join(/*turbopackIgnore: true*/ process.cwd(), "cookies.txt");
+      if (existsSync(cookiesPath)) {
+        ytDlpArgs.push("--cookies", cookiesPath);
+      }
+
+      ytDlpArgs.push(
         "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
         "-o", sourceFile,
         "--no-playlist",
         "--max-filesize", "500M",
         sourceUrl,
-      ], { timeout: 300000 }); // 5 min timeout
+      );
+
+      await execFileAsync("yt-dlp", ytDlpArgs, { timeout: 300000 }); // 5 min timeout
 
       // Step 2: Extract clip using ffmpeg
       await execFileAsync("ffmpeg", [

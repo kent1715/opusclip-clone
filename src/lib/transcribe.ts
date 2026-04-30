@@ -174,27 +174,36 @@ export async function transcribeVideo(
       // Download from URL using yt-dlp
       onProgress?.("downloading-audio", "Downloading audio for transcription...");
       try {
-        await execFileAsync(
-          "yt-dlp",
-          [
-            "--js-runtimes",
-            "deno",
-            "--extractor-args",
-            "youtube:player_client=web,mweb",
-            "-f",
-            "bestaudio",
-            "-x",
-            "--audio-format",
-            "wav",
-            "-o",
-            sourceFile,
-            "--no-playlist",
-            "--max-filesize",
-            "200M",
-            videoUrl,
-          ],
-          { timeout: 180000 }
+        // Build yt-dlp args with optional cookies support for YouTube bot detection bypass
+        const ytDlpArgs = [
+          "--js-runtimes",
+          "deno",
+          "--extractor-args",
+          "youtube:player_client=web,mweb",
+        ];
+
+        // Use cookies file if available (bypasses YouTube bot detection on server IPs)
+        const cookiesPath = join(/*turbopackIgnore: true*/ process.cwd(), "cookies.txt");
+        if (existsSync(cookiesPath)) {
+          ytDlpArgs.push("--cookies", cookiesPath);
+          console.log("[transcribe] Using cookies.txt for YouTube authentication");
+        }
+
+        ytDlpArgs.push(
+          "-f",
+          "bestaudio",
+          "-x",
+          "--audio-format",
+          "wav",
+          "-o",
+          sourceFile,
+          "--no-playlist",
+          "--max-filesize",
+          "200M",
+          videoUrl,
         );
+
+        await execFileAsync("yt-dlp", ytDlpArgs, { timeout: 180000 });
 
         // yt-dlp may change the extension
         if (existsSync(sourceFile + ".wav")) {
