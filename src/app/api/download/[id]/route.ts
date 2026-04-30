@@ -49,6 +49,8 @@ export async function GET(
     try {
       // Step 1: Download source video using yt-dlp
       await execFileAsync("yt-dlp", [
+        "--js-runtimes", "deno",
+        "--extractor-args", "youtube:player_client=web,mweb",
         "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
         "-o", sourceFile,
         "--no-playlist",

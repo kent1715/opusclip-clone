@@ -55,6 +55,7 @@ export async function POST(request: Request) {
       // Download from URL using yt-dlp
       await execFileAsync("yt-dlp", [
         "--js-runtimes", "deno",
+        "--extractor-args", "youtube:player_client=web,mweb",
         "-f", "bestaudio",
         "-x", "--audio-format", "wav",
         "-o", sourceFile,

@@ -179,6 +179,8 @@ export async function transcribeVideo(
           [
             "--js-runtimes",
             "deno",
+            "--extractor-args",
+            "youtube:player_client=web,mweb",
             "-f",
             "bestaudio",
             "-x",
